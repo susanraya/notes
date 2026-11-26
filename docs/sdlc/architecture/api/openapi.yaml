@@ -2,6 +2,456 @@
 openapi: 3.1.0
 info:
   title: notes
-  version: architecture-v0
+  version: architecture-v1
   description: Designed API from the approved architecture (not extracted from code).
-paths: {}
+paths:
+  /auth/login:
+    post:
+      summary: Authenticate and issue an opaque session token in the body; generic
+        error on failure without revealing if the email exis
+      description: Authenticate and issue an opaque session token in the body; generic
+        error on failure without revealing if the email exists.
+      operationId: post_auth_login
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ email, password }'
+      responses:
+        '200':
+          description: 200 { token, user } | 401 generic invalid credentials
+  /auth/logout:
+    post:
+      summary: Revoke the current session token on the server.
+      description: Revoke the current session token on the server.
+      operationId: post_auth_logout
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: (empty)
+      responses:
+        '200':
+          description: '204'
+      security:
+      - bearerAuth: []
+  /auth/password-reset/confirm:
+    post:
+      summary: Set a new password using a reset token.
+      description: Set a new password using a reset token.
+      operationId: post_auth_password_reset_confirm
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ token, password }'
+      responses:
+        '200':
+          description: 200 updated | 400 invalid/expired
+  /auth/password-reset/request:
+    post:
+      summary: Request a password-reset email; always returns success to avoid revealing
+        whether the email exists.
+      description: Request a password-reset email; always returns success to avoid
+        revealing whether the email exists.
+      operationId: post_auth_password_reset_request
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ email }'
+      responses:
+        '200':
+          description: 202 accepted
+  /auth/register:
+    post:
+      summary: Create an account with email and password; rejects duplicate email
+        and invalid field values; returns an opaque session t
+      description: Create an account with email and password; rejects duplicate email
+        and invalid field values; returns an opaque session token on success.
+      operationId: post_auth_register
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ email, password }'
+      responses:
+        '200':
+          description: '201 { token, user: { id, email } } | 409 email in use | 422
+            field errors'
+  /auth/verify-email:
+    post:
+      summary: Confirm an account using a token from the verification email.
+      description: Confirm an account using a token from the verification email.
+      operationId: post_auth_verify_email
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ token }'
+      responses:
+        '200':
+          description: 200 verified | 400 invalid/expired
+  /folders:
+    get:
+      summary: List the user's folders.
+      description: List the user's folders.
+      operationId: get_folders
+      parameters: []
+      responses:
+        '200':
+          description: 200 [{ id, name }]
+      security:
+      - bearerAuth: []
+    post:
+      summary: Create a folder for the user.
+      description: Create a folder for the user.
+      operationId: post_folders
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ name }'
+      responses:
+        '200':
+          description: 201 { id, name }
+      security:
+      - bearerAuth: []
+  /folders/{id}:
+    delete:
+      summary: Delete a folder; its notes become unfiled.
+      description: Delete a folder; its notes become unfiled.
+      operationId: delete_folders_id
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: '204'
+      security:
+      - bearerAuth: []
+  /notes:
+    get:
+      summary: List the signed-in user's notes with title and snippet; optional folder_id
+        or tag_id filter.
+      description: List the signed-in user's notes with title and snippet; optional
+        folder_id or tag_id filter.
+      operationId: get_notes
+      parameters: []
+      responses:
+        '200':
+          description: 200 [{ id, title, snippet, updated_at }]
+      security:
+      - bearerAuth: []
+    post:
+      summary: Create a new empty note owned by the user, ready for editing.
+      description: Create a new empty note owned by the user, ready for editing.
+      operationId: post_notes
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ title?, content_html? }'
+      responses:
+        '200':
+          description: 201 { id, title, content_html, updated_at }
+      security:
+      - bearerAuth: []
+  /notes/search:
+    get:
+      summary: Full-text search across the user's own notes by title or content; clear
+        empty result when nothing matches.
+      description: Full-text search across the user's own notes by title or content;
+        clear empty result when nothing matches.
+      operationId: get_notes_search
+      parameters: []
+      responses:
+        '200':
+          description: 200 [{ id, title, snippet }]
+      security:
+      - bearerAuth: []
+  /notes/{id}:
+    get:
+      summary: Open one of the user's notes with saved content and formatting; refuses
+        notes owned by another account.
+      description: Open one of the user's notes with saved content and formatting;
+        refuses notes owned by another account.
+      operationId: get_notes_id
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: 200 { id, title, content_html, folder_id, tags, updated_at
+            } | 404
+      security:
+      - bearerAuth: []
+    put:
+      summary: Autosave an edit; sanitises rich-text HTML, updates content and search
+        vector, returns saved timestamp.
+      description: Autosave an edit; sanitises rich-text HTML, updates content and
+        search vector, returns saved timestamp.
+      operationId: put_notes_id
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ title, content_html, folder_id? }'
+      responses:
+        '200':
+          description: 200 { id, updated_at } | 404
+      security:
+      - bearerAuth: []
+    delete:
+      summary: Delete a note the user owns so it no longer appears in list or search.
+      description: Delete a note the user owns so it no longer appears in list or
+        search.
+      operationId: delete_notes_id
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: 204 | 404
+      security:
+      - bearerAuth: []
+  /notes/{id}/tags:
+    put:
+      summary: Set the tags assigned to a note (add or remove), scoped to the user.
+      description: Set the tags assigned to a note (add or remove), scoped to the
+        user.
+      operationId: put_notes_id_tags
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ tag_ids: [] }'
+      responses:
+        '200':
+          description: 200 { id, tags }
+      security:
+      - bearerAuth: []
+  /tags:
+    get:
+      summary: List the user's tags.
+      description: List the user's tags.
+      operationId: get_tags
+      parameters: []
+      responses:
+        '200':
+          description: 200 [{ id, name }]
+      security:
+      - bearerAuth: []
+    post:
+      summary: Create a tag for the user.
+      description: Create a tag for the user.
+      operationId: post_tags
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ name }'
+      responses:
+        '200':
+          description: 201 { id, name }
+      security:
+      - bearerAuth: []
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  schemas:
+    users:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        password_hash:
+          type: string
+        email_verified:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+      required:
+      - id
+      - email
+      - password_hash
+      - email_verified
+      - created_at
+    sessions:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        token_hash:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+        revoked_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+      required:
+      - id
+      - user_id
+      - token_hash
+      - expires_at
+      - created_at
+    email_tokens:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        token_hash:
+          type: string
+        purpose:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+        used_at:
+          type: string
+          format: date-time
+      required:
+      - id
+      - user_id
+      - token_hash
+      - purpose
+      - expires_at
+    folders:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+      required:
+      - id
+      - user_id
+      - name
+      - created_at
+    notes:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        folder_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        content_html:
+          type: string
+        content_text:
+          type: string
+        search_vector:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+      - id
+      - user_id
+      - title
+      - content_html
+      - content_text
+      - created_at
+      - updated_at
+    tags:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+      required:
+      - id
+      - user_id
+      - name
+    note_tags:
+      type: object
+      properties:
+        note_id:
+          type: string
+          format: uuid
+        tag_id:
+          type: string
+          format: uuid
+      required:
+      - note_id
+      - tag_id
