@@ -5,128 +5,121 @@
 <!-- sdlc:auto:start narrative -->
 ## Summary
 
-### REQ-STACK · approved · source: requirements:technology-stack
+### REQ-TECHSTACK · approved · source: requirements:tech-stack
 
-Product owner approved a fixed technology stack for a lightweight, personal-scale notes app: React 19 frontend, FastAPI 0.115 backend, PostgreSQL 16 database, AWS cloud.
+Product owner approved an exact technology stack: FastAPI backend, AWS cloud, PostgreSQL database, React frontend.
 
-- Backend: FastAPI 0.115 - handles registration/sign-in, keeps notes private per account, autosave, and search; lean Python framework right-sized for low concurrency; platform default.
-- Cloud: AWS - single-region web app + Python server + one PostgreSQL database; managed RDS handles backups/patching; scales down cheaply for a free personal app; platform default.
-- Database: PostgreSQL 16 - stores accounts, notes, tags/folders with enforced one-account-per-note ownership; built-in full-text search covers 'find notes again' without a separate search engine; platform default.
-- Frontend: React 19 - responsive web app with rich-text editing (bold, lists, headings) and live autosave; mature rich-text editor libraries available; platform default.
-Design must be against exactly these choices, no substitutions.
+Backend: FastAPI 0.115 - lean Python framework right-sized for registering/signing in users, keeping notes private, autosaving edits, and answering searches at personal scale. Cloud: AWS - single-region web app + Python server + one PostgreSQL database; managed RDS handles backups/patching; platform default, scales down cheaply. Database: PostgreSQL 16 - stores accounts/notes/tags/folders with one-owner-per-note enforcement, and provides built-in full-text search so no separate search engine is needed. Frontend: React 19 - responsive SPA for laptop/phone, with mature rich-text editors for bold/lists/headings and live autosave. Design must use exactly these, no substitutions.
 
 ### REQ-SERVICES · approved · source: requirements:services
 
-One external runtime service is approved: an SMTP server for account-related email, needed because the app uses email-and-password sign-in.
+One external service is approved: an SMTP email provider for account-verification and password-reset messages.
 
-- Email: SMTP server (SaaS) - delivers account-verification and password-reset messages at personal-use volumes without a paid delivery plan.
-- Config via env vars: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD.
-- API keys/secrets needed: SMTP_HOST, SMTP_PASSWORD, SMTP_PORT, SMTP_USER (values to be set at deployment time, e.g. <smtp-host>, <smtp-password>, <smtp-port>, <smtp-user> - never hard-coded).
+Email: SMTP server (SaaS), configured via env vars SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD. Needed because email-and-password sign-in requires a way to send verification and password-reset messages; a standard SMTP server covers this at personal-use volumes without a paid delivery plan. Required API keys/secrets: SMTP_HOST, SMTP_PASSWORD, SMTP_PORT, SMTP_USER (values must be set as environment secrets, e.g. <smtp-host>, <smtp-password>).
 
 ### REQ-SCOPE · approved · source: requirements:scope
 
-Delivery scope is lightweight: email/password accounts with private rich-text notes, autosave, tags/folders, search, and responsive web delivery only. Sharing, offline sync, and native apps are explicitly excluded.
+Lightweight delivery scope covering email/password accounts and private rich-text notes as a responsive web app; sharing, offline use, and native apps are explicitly excluded.
 
-In scope: email and password registration/sign-in; private per-account notes; rich-text note creation/editing (bold, lists, headings); autosave while editing; delete a note; note list home screen; search across a user's notes; tags or folders for organising notes; no image or file attachments in the initial scope.
-Out of scope: sharing notes and real-time collaboration between users; offline reading/writing of notes with later sync; native iOS/Android or desktop apps (responsive web app only).
+In scope: email and password registration/sign-in; private per-account notes; rich-text note creation/editing (bold, lists, headings); autosave while editing; delete a note; note list home screen; search across a user's notes; tags or folders for organising notes; no image or file attachments in initial scope. Out of scope: sharing notes and real-time collaboration between users; offline reading/writing with later sync; native iOS/Android or desktop apps (web app only, responsive).
 
-### REQ-FEAT-AUTH · approved · source: requirements:functional:sign-in-accounts
+### REQ-FEAT-AUTH · approved · source: requirements:feature:Sign-in & accounts
 
-Email/password registration, sign-in, sign-out/session-expiry, and strict per-account privacy of notes.
+Covers account registration, sign-in, sign-out/session expiry, and strict per-account privacy of notes.
 
-- Register with email and password: new visitor creates an account if the email is unused and the password meets stated rules, then lands in an empty notes space; duplicate email is rejected; invalid email/password shows which field needs correcting.
-- Sign in to my account: registered user signs in with email and password to reach the note list home screen; wrong email or password is refused with a generic message.
-- Sign out and session end: signed-in user can sign out, ending the session so sign-in is required again; sessions also end after a period of inactivity.
-- Private per-account notes: every note view, search and action is limited to the signed-in user's own notes; attempts to open, edit, or delete another account's note are refused.
+Register with email and password: new visitor creates an account (email + password meeting stated rules), lands in an empty notes space; duplicate email is rejected; invalid email/password shows which field needs correction. Sign in: registered user signs in with email/password and lands on note list home; wrong email or password is refused with a generic message. Sign out and session end: signed-in user can sign out, ending the session (must sign in again); sessions also end after a period of inactivity. Private per-account notes: every note view, search, and action is limited to the signed-in user's own notes; attempts to open, edit, or delete another account's note are refused.
 
-**Related:** NFR-001, NFR-002, NFR-003, NFR-004
+### REQ-FEAT-WRITING · approved · source: requirements:feature:Writing notes
 
-### REQ-FEAT-WRITING · approved · source: requirements:functional:writing-notes
+Covers creating rich-text notes, autosaving edits, and reopening existing notes.
 
-Users create rich-text notes with bold/lists/headings, with automatic saving and the ability to reopen existing notes.
+Create a rich-text note: signed-in user creates a new empty note owned by their account, opening ready for typing; bold, lists, and headings can be applied and are kept with the note; no image/file attachment option offered. Autosave while editing: changes save automatically as the user works, with a save status shown; most recently saved content/formatting appear on reopen; user is told when a save did not complete so they know a change is unsaved. Open an existing note: signed-in user selects a note from the list and it opens in the editor with saved content and formatting intact, ready to continue editing.
 
-- Create a rich-text note: signed-in user creates a new empty note, owned by their account, opening ready for typing; bold, lists, and headings can be applied and are kept with the note; no image or file attachment option offered.
-- Autosave while editing: changes save automatically as the user works, with save status shown; reopening shows the most recently saved content/formatting; the user is told when a save did not complete so they know a change is unsaved.
-- Open an existing note: signed-in user selects one of their notes from the list and it opens in the editor with saved content and formatting intact, ready to continue editing.
+### REQ-FEAT-LIST · approved · source: requirements:feature:Note list & deletion
 
-**Related:** NFR-005
+Covers the note list home screen and deleting notes.
 
-### REQ-FEAT-LIST · approved · source: requirements:functional:note-list-deletion
+Note list home screen: after signing in, user lands on a list of their own notes shown with enough detail (title or snippet) to identify each; a new user with no notes sees an empty state inviting them to create their first note. Delete a note: signed-in user deletes a note they no longer want; after confirming, it is removed and no longer appears in list or search results; cancelling before confirming keeps the note unchanged.
 
-The note list is the home screen after sign-in, and users can delete notes they no longer want.
+### REQ-FEAT-ORG · approved · source: requirements:feature:Organising notes
 
-- Note list home screen: after signing in, the user lands on a list of their own notes shown with enough detail (title or snippet) to identify each one; a new user with no notes sees an empty state inviting them to create their first note.
-- Delete a note: signed-in user can delete a note; after confirming, it is removed and no longer appears in the list or search results; cancelling before confirming keeps the note unchanged.
+Covers assigning tags/folders to notes and browsing/filtering by them.
 
-### REQ-FEAT-ORG · approved · source: requirements:functional:organising-notes
+Assign tags or folders: signed-in user organises a note by assigning a tag or placing it in a folder; the assignment is saved and shown on reopen; removing a tag or moving the note out of a folder stops it being grouped there. Browse by tag or folder: signed-in user filters their note list by a tag or folder so only notes in that group are shown; clearing the filter shows the full note list again.
 
-Users organise notes using tags or folders and can filter their note list by those groups.
+### REQ-FEAT-SEARCH · approved · source: requirements:feature:Searching notes
 
-- Assign tags or folders: signed-in user can organise a note by assigning a tag or placing it in a folder; the assignment is saved and shown when the note is reopened; removing a tag or moving a note out of a folder stops it being grouped there.
-- Browse by tag or folder: signed-in user can filter their note list by a tag or folder so only notes in that group are shown; clearing the filter shows the full note list again.
+Covers searching across a user's own notes by title or content.
 
-### REQ-FEAT-SEARCH · approved · source: requirements:functional:searching-notes
+Search my notes: signed-in user searches across their own notes by title or content; only notes they own are returned; when nothing matches, a clear no-results message is shown; clearing the search term restores the full list.
 
-Users can search their own notes by title or content, with clear feedback when nothing matches.
+### REQ-FEAT-DEVICE · approved · source: requirements:feature:Any device access
 
-- Search my notes: signed-in user searches across their own notes by title or content; only notes they own are returned; a clear no-results message is shown when nothing matches; clearing the search term restores the full list.
+Covers responsive layout on laptop/phone and notifying the user when connectivity is lost.
 
-### REQ-FEAT-DEVICE · approved · source: requirements:functional:any-device-access
+Use on laptop or phone: app adapts its layout to laptop and phone screens in a modern browser, keeping all core actions (create, edit, delete, search, organise) usable on either size. Connection needed notice: because the app works only while online, the user is told a network connection is needed when they have none.
 
-The app is a responsive web app usable on laptop or phone in a modern browser, and it must inform the user when there is no network connection.
+### REQ-NFR-001 · approved · source: requirements:NFR-001
 
-- Use on laptop or phone: the app adapts its layout to laptop and phone screens in a modern browser, keeping create, edit, delete, search, and organise usable on either size.
-- Connection needed notice: because the app works only while online, the user is told that a network connection is needed when they have none.
+Privacy: notes must be visible only to their owner.
 
-**Related:** NFR-006, NFR-008
+[privacy] Every note list, search and action must return or affect only notes owned by the signed-in user; any attempt to open, edit or delete another account's note must be refused, so no user can see or change another user's notes.
 
-### NFR-001 · approved · source: requirements:NFR-001
+**Related:** REQ-FEAT-AUTH
 
-Privacy: notes are visible only to their owner.
+### REQ-NFR-002 · approved · source: requirements:NFR-002
 
-Every note list, search and action must return or affect only notes owned by the signed-in user; any attempt to open, edit or delete another account's note must be refused so no user can see or change another user's notes.
+Security: passwords must be stored only in hashed form.
 
-### NFR-002 · approved · source: requirements:NFR-002
+[security] User passwords must be stored only in hashed form and never in plain text, so that inspecting the stored credentials never reveals a usable password.
 
-Security: passwords must be stored hashed, never in plain text.
+**Related:** REQ-FEAT-AUTH
 
-User passwords must be stored only in hashed form so that inspecting the stored credentials never reveals a usable password.
-
-### NFR-003 · approved · source: requirements:NFR-003
+### REQ-NFR-003 · approved · source: requirements:NFR-003
 
 Security: sessions must end on sign-out and expire after inactivity.
 
-A session must end when the user signs out and must expire after a period of inactivity, after which the user has to sign in again before viewing or editing any notes, keeping notes private on shared or unattended devices.
+[security] A session must end when the user signs out and must expire after a period of inactivity, after which the user has to sign in again before viewing or editing any notes, keeping notes private on shared or unattended devices.
 
-### NFR-004 · approved · source: requirements:NFR-004
+**Related:** REQ-FEAT-AUTH
 
-Security: failed sign-in must not reveal whether an email has an account.
+### REQ-NFR-004 · approved · source: requirements:NFR-004
 
-A failed sign-in must be refused with a generic message that does not reveal whether the email address has an account.
+Security: failed sign-in must not reveal whether an email exists.
 
-### NFR-005 · approved · source: requirements:NFR-005
+[security] A failed sign-in must be refused with a generic message that does not reveal whether the email address has an account.
 
-Usability: autosave status must always be visible to the user.
+**Related:** REQ-FEAT-AUTH
 
-While a user edits a note, the app must show whether changes have been saved, and must clearly show when a save did not complete so the user never assumes an unsaved change was stored.
+### REQ-NFR-005 · approved · source: requirements:NFR-005
 
-### NFR-006 · approved · source: requirements:NFR-006
+Usability: autosave status must always be visible, including failures.
 
-Compatibility: the app must be responsive in modern browsers on laptop and phone.
+[usability] While a user edits a note, the app must show whether changes have been saved, and must clearly show when a save did not complete so the user never assumes an unsaved change was stored.
 
-The app must work as a responsive web app in any modern browser, adapting its layout to laptop and phone screens while keeping all core actions usable on both.
+**Related:** REQ-FEAT-WRITING
 
-### NFR-007 · approved · source: requirements:NFR-007
+### REQ-NFR-006 · approved · source: requirements:NFR-006
 
-Scalability: the app is sized for modest personal-use scale only.
+Compatibility: responsive layout required in modern browsers on laptop and phone.
 
-The app is sized for individual users with personal note volumes and no high-concurrency or large-data demands; higher scale is not a requirement for this lightweight build.
+[compatibility] The app must work as a responsive web app in any modern browser, adapting its layout to laptop and phone screens while keeping all core actions usable on both.
 
-### NFR-008 · approved · source: requirements:NFR-008
+**Related:** REQ-FEAT-DEVICE
 
-Availability (accepted risk): online connection is required; no offline use is supported.
+### REQ-NFR-007 · approved · source: requirements:NFR-007
 
-The app requires an online connection and does not support offline reading or writing with later sync; when there is no network it informs the user that connectivity is needed. This is an accepted risk, not a defect to fix.
+Scalability: app is sized for modest personal-use scale only.
+
+[scalability] The app is sized for individual users with personal note volumes and no high-concurrency or large-data demands; higher scale is not a requirement for this lightweight build.
+
+### REQ-NFR-008 · approved · source: requirements:NFR-008
+
+Availability: accepted risk that the app requires an online connection with no offline support.
+
+[availability] (accepted risk) The app requires an online connection and does not support offline reading or writing with later sync; when there is no network it informs the user that connectivity is needed.
+
+**Related:** REQ-FEAT-DEVICE
 <!-- sdlc:auto:end narrative -->
 
 <!-- sdlc:auto:start summary -->
