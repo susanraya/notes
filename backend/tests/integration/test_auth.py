@@ -156,3 +156,76 @@ def test_tc019_stored_password_is_hashed_never_plain_text(client: TestClient) ->
     body = response.json()
     assert body["token"]
     assert new_pw not in response.text
+
+
+# --- US-002: Sign in to my account (POST /auth/login) ---
+
+
+def test_tc005_successful_login_issues_session_token(client: TestClient) -> None:
+    new_pw = "Str0ngP@ss1"
+
+    register_response = client.post(
+        "/auth/register",
+        json={
+            "email": "alice@example.com",
+            "password": new_pw,
+            "confirmPassword": new_pw,
+        },
+    )
+    assert register_response.status_code == 201, register_response.text
+    assert register_response.json()["token"]
+
+    login_response = client.post(
+        "/auth/login", json={"email": "alice@example.com", "password": new_pw}
+    )
+
+    assert login_response.status_code == 200, login_response.text
+    assert login_response.json()["token"]
+
+
+def test_tc007_login_refused_with_wrong_password(client: TestClient) -> None:
+    correct_pw = "CorrectPass1"
+
+    register_response = client.post(
+        "/auth/register",
+        json={
+            "email": "carol@example.com",
+            "password": correct_pw,
+            "confirmPassword": correct_pw,
+        },
+    )
+    assert register_response.status_code == 201, register_response.text
+
+    response = client.post(
+        "/auth/login", json={"email": "carol@example.com", "password": "WrongPass9"}
+    )
+
+    assert response.status_code == 401, response.text
+    assert "token" not in response.json()
+    assert "carol@example.com" not in response.text
+
+
+def test_tc008_login_refused_identically_for_unknown_email(client: TestClient) -> None:
+    correct_pw = "CorrectPass1"
+
+    register_response = client.post(
+        "/auth/register",
+        json={
+            "email": "carol2@example.com",
+            "password": correct_pw,
+            "confirmPassword": correct_pw,
+        },
+    )
+    assert register_response.status_code == 201, register_response.text
+
+    wrong_password_response = client.post(
+        "/auth/login", json={"email": "carol2@example.com", "password": "WrongPass9"}
+    )
+    unknown_email_response = client.post(
+        "/auth/login", json={"email": "nouser@example.com", "password": "AnyPass123"}
+    )
+
+    assert wrong_password_response.status_code == 401, wrong_password_response.text
+    assert unknown_email_response.status_code == wrong_password_response.status_code
+    assert unknown_email_response.json() == wrong_password_response.json()
+    assert "token" not in unknown_email_response.json()

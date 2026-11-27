@@ -12,7 +12,8 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.auth import verify_password
+from app.auth import USER_ROLE, ensure_user, verify_password
+from app.errors import WRONG_CREDENTIALS
 from app.models import User
 from app.routers.register import MIN_PASSWORD_LENGTH
 
@@ -102,3 +103,51 @@ def test_ac004_stores_the_password_only_as_a_hash(client: TestClient, db_session
     assert stored.password_hash != password
     assert password not in stored.password_hash
     assert verify_password(password, stored.password_hash)
+
+
+# --- US-002: Sign in to my account (POST /auth/login) ---
+
+
+def test_ac005_signs_in_with_the_correct_email_and_password(
+    client: TestClient, db_session: Session
+) -> None:
+    email = _email()
+    password = _strong_password()
+    ensure_user(db_session, email=email, password=password, role=USER_ROLE)
+
+    response = client.post("/auth/login", json={"email": email, "password": password})
+
+    assert response.status_code == 200
+    token = response.json()["token"]
+    assert token
+
+    # Signed in: the token works against a protected route and lands on this account.
+    me = client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert me.status_code == 200
+    assert me.json()["email"] == email
+
+
+def test_ac006_rejects_an_incorrect_password_with_the_generic_message(
+    client: TestClient, db_session: Session
+) -> None:
+    email = _email()
+    ensure_user(db_session, email=email, password=_strong_password(), role=USER_ROLE)
+
+    response = client.post(
+        "/auth/login", json={"email": email, "password": secrets.token_urlsafe()}
+    )
+
+    assert response.status_code == WRONG_CREDENTIALS.status_code
+    assert response.json()["detail"] == WRONG_CREDENTIALS.message
+
+
+def test_ac006_rejects_an_unknown_email_with_the_very_same_message(client: TestClient) -> None:
+    """NFR-004: an email that was never registered is refused exactly like a wrong
+    password for one that was, so the response alone never reveals which it was."""
+    response = client.post(
+        "/auth/login",
+        json={"email": _email(), "password": _strong_password()},
+    )
+
+    assert response.status_code == WRONG_CREDENTIALS.status_code
+    assert response.json()["detail"] == WRONG_CREDENTIALS.message

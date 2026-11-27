@@ -13,7 +13,12 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Login */
+        /**
+         * Login
+         * @description AC-005/AC-006 (US-002): one and the same refusal for a wrong password and for an
+         *     email that is not registered at all (NFR-004), so a failure never tells which of the
+         *     two it was.
+         */
         post: operations["login_auth_login_post"];
         delete?: never;
         options?: never;
@@ -164,6 +169,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["LoginResponse"];
                 };
+            };
+            /** @description Incorrect email or password. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

@@ -25,6 +25,7 @@ from sqlalchemy.orm import Session
 
 from app.api_model import ApiModel
 from app.database import get_db
+from app.errors import WRONG_CREDENTIALS
 from app.models import User
 
 ADMIN_ROLE = "admin"
@@ -127,11 +128,20 @@ def current_user(
     return user
 
 
-@router.post("/login")
+@router.post(
+    "/login",
+    responses={
+        WRONG_CREDENTIALS.status_code: {"description": WRONG_CREDENTIALS.message},
+    },
+)
 def login(body: LoginRequest, session: Annotated[Session, Depends(get_db)]) -> LoginResponse:
+    """AC-005/AC-006 (US-002): one and the same refusal for a wrong password and for an
+    email that is not registered at all (NFR-004), so a failure never tells which of the
+    two it was.
+    """
     user = find_user(session, body.email.strip())
     if user is None or not verify_password(body.password, user.password_hash or ""):
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Wrong email or password.")
+        raise HTTPException(WRONG_CREDENTIALS.status_code, WRONG_CREDENTIALS.message)
     return LoginResponse(token=issue_token(user))
 
 

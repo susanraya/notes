@@ -12,6 +12,7 @@
           "Auth"
         ],
         "summary": "Login",
+        "description": "AC-005/AC-006 (US-002): one and the same refusal for a wrong password and for an\nemail that is not registered at all (NFR-004), so a failure never tells which of the\ntwo it was.",
         "operationId": "login_auth_login_post",
         "requestBody": {
           "content": {
@@ -33,6 +34,9 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Incorrect email or password."
           },
           "422": {
             "description": "Validation Error",

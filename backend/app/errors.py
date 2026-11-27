@@ -29,3 +29,11 @@ WEAK_PASSWORD = ErrorCode(
     status.HTTP_422_UNPROCESSABLE_ENTITY,
     "Password does not meet the required strength.",
 )
+
+# POST /auth/login
+# One message for a wrong email and a wrong password alike (AC-006, NFR-004): it
+# never says which of the two was wrong, so it never confirms an email is registered.
+WRONG_CREDENTIALS = ErrorCode(
+    status.HTTP_401_UNAUTHORIZED,
+    "Incorrect email or password.",
+)
