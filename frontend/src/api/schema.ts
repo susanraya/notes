@@ -43,6 +43,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Logout
+         * @description Revoke the current session token (AC-007). Logic lands with US-003.1.
+         */
+        post: operations["logout_auth_logout_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/register": {
         parameters: {
             query?: never;
@@ -67,7 +87,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List Notes
+         * @description Every note owned by the signed-in user, for their note list (AC-011/AC-017).
+         */
+        get: operations["list_notes_notes_get"];
         put?: never;
         /** Create Note */
         post: operations["create_note_notes_post"];
@@ -90,7 +114,13 @@ export interface paths {
          *     intact (AC-017); refuses a note owned by another account.
          */
         get: operations["get_note_notes__note_id__get"];
-        put?: never;
+        /**
+         * Update Note
+         * @description Apply and persist bold/heading/list formatting on one of the signed-in user's
+         *     notes (AC-012); refuses a note owned by another account, leaving its content
+         *     untouched (AC-012/AC-017 access control).
+         */
+        put: operations["update_note_notes__note_id__put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -169,6 +199,19 @@ export interface components {
              * Format: date-time
              */
             updatedAt: string;
+        };
+        /**
+         * NoteUpdateRequest
+         * @description The one field a note's content is saved from (AC-012). Any other field in the
+         *     body -- an attempted attachment, for example -- is accepted and silently ignored:
+         *     AC-013 offers no way to attach an image or file through this API.
+         */
+        NoteUpdateRequest: {
+            /**
+             * Contenthtml
+             * @default
+             */
+            contentHtml: string;
         };
         /** RegisterRequest */
         RegisterRequest: {
@@ -268,6 +311,24 @@ export interface operations {
             };
         };
     };
+    logout_auth_logout_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     register_auth_register_post: {
         parameters: {
             query?: never;
@@ -306,6 +367,26 @@ export interface operations {
             };
         };
     };
+    list_notes_notes_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NoteResponse"][];
+                };
+            };
+        };
+    };
     create_note_notes_post: {
         parameters: {
             query?: never;
@@ -336,6 +417,48 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NoteResponse"];
+                };
+            };
+            /** @description No such note. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_note_notes__note_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                note_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NoteUpdateRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

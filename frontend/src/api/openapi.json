@@ -77,6 +77,26 @@
         ]
       }
     },
+    "/auth/logout": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Logout",
+        "description": "Revoke the current session token (AC-007). Logic lands with US-003.1.",
+        "operationId": "logout_auth_logout_post",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/auth/register": {
       "post": {
         "tags": [
@@ -115,6 +135,35 @@
       }
     },
     "/notes": {
+      "get": {
+        "tags": [
+          "Notes"
+        ],
+        "summary": "List Notes",
+        "description": "Every note owned by the signed-in user, for their note list (AC-011/AC-017).",
+        "operationId": "list_notes_notes_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/NoteResponse"
+                  },
+                  "type": "array",
+                  "title": "Response List Notes Notes Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
       "post": {
         "tags": [
           "Notes"
@@ -164,6 +213,65 @@
             }
           }
         ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NoteResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such note."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Notes"
+        ],
+        "summary": "Update Note",
+        "description": "Apply and persist bold/heading/list formatting on one of the signed-in user's\nnotes (AC-012); refuses a note owned by another account, leaving its content\nuntouched (AC-012/AC-017 access control).",
+        "operationId": "update_note_notes__note_id__put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "note_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Note Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NoteUpdateRequest"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -319,6 +427,18 @@
         ],
         "title": "NoteResponse",
         "description": "A note as returned to the client (POST /notes). AC-011 (US-005)."
+      },
+      "NoteUpdateRequest": {
+        "properties": {
+          "contentHtml": {
+            "type": "string",
+            "title": "Contenthtml",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "title": "NoteUpdateRequest",
+        "description": "The one field a note's content is saved from (AC-012). Any other field in the\nbody -- an attempted attachment, for example -- is accepted and silently ignored:\nAC-013 offers no way to attach an image or file through this API."
       },
       "RegisterRequest": {
         "properties": {
