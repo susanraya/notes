@@ -1,18 +1,30 @@
 // @ts-nocheck -- generated from the approved design under its JS runtime contract; not hand-written TypeScript.
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import React from "react";
+import { useLocation } from "react-router-dom";
 
 import * as UI from "@/lib/ui";
 import { Icons } from "@/lib/icons";
 import { brand } from "@/lib/brand";
 import { useNavigate } from "@/lib/navigate";
+import {
+  applyBold,
+  applyHeading,
+  applyBulletedList,
+  applyNumberedList,
+  getActiveFormats,
+} from "@/lib/richText";
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const { Button, Input, Label, Select } = UI;
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const { Plus, Check, X, User, Trash, ArrowLeft, AlertCircle } = Icons;
 
-const NOTE = {
+// The note shown when the editor is opened from the note list (no note is
+// passed on navigation) -- there is no "read a note" endpoint yet, so this
+// stands in for it. A note created through "New note" (AC-011) arrives via
+// navigation state instead and takes over every field below.
+const FALLBACK_NOTE = {
   id: "N-2041",
   title: "Q1 planning",
   folder_id: "f-work",
@@ -52,8 +64,22 @@ const clockNow = () => {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 };
 
+// A freshly created note's createdAt/updatedAt are ISO timestamps from the API
+// (NoteResponse); the fallback note's are already the short display strings above.
+const formatDate = (value) => {
+  if (!value) return "";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return String(value);
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+};
+
 export default function Screen() {
   const navigate = useNavigate();
+  const location = useLocation();
+  // AC-011: a note just created by "New note" arrives here, empty and owned
+  // by the signed-in user, ready for typing straight away.
+  const createdNote = location.state && location.state.note;
+
   const hair = withAlpha(brand.primaryColor, 0.12);
   const hairSoft = withAlpha(brand.primaryColor, 0.07);
   const surface = withAlpha(brand.primaryColor, 0.035);
@@ -61,9 +87,22 @@ export default function Screen() {
   const muted = brand.neutralColor;
   const accent = brand.accentColor;
 
-  const [title, setTitle] = React.useState(NOTE.title);
-  const [folder, setFolder] = React.useState(NOTE.folder_id);
-  const [tags, setTags] = React.useState(NOTE.tags);
+  const noteId = createdNote ? createdNote.id : FALLBACK_NOTE.id;
+  const initialContentHtml = createdNote
+    ? createdNote.contentHtml || ""
+    : FALLBACK_NOTE.content_html;
+  const initialCreatedAt = createdNote
+    ? formatDate(createdNote.createdAt)
+    : FALLBACK_NOTE.created_at;
+  const initialUpdatedAt = createdNote
+    ? formatDate(createdNote.updatedAt)
+    : FALLBACK_NOTE.updated_at;
+
+  const [title, setTitle] = React.useState(
+    createdNote ? createdNote.title || "" : FALLBACK_NOTE.title,
+  );
+  const [folder, setFolder] = React.useState(createdNote ? "" : FALLBACK_NOTE.folder_id);
+  const [tags, setTags] = React.useState(createdNote ? [] : FALLBACK_NOTE.tags);
   const [newTag, setNewTag] = React.useState("");
   const [tagError, setTagError] = React.useState("");
   const [saveState, setSaveState] = React.useState("saved"); // saved | saving | error
@@ -71,7 +110,7 @@ export default function Screen() {
   const [words, setWords] = React.useState(0);
   const [fmt, setFmt] = React.useState({ bold: false, h: false, ul: false, ol: false });
   const [confirmOpen, setConfirmOpen] = React.useState(false);
-  const [deleting, setDeleting] = React.useState(false);
+  const [deleteState, setDeleteState] = React.useState("idle"); // idle | deleting | deleted
 
   const editorRef = React.useRef(null);
   const selRef = React.useRef(null);
@@ -82,20 +121,25 @@ export default function Screen() {
   const cancelBtnRef = React.useRef(null);
 
   const countWords = React.useCallback(() => {
-    const text = editorRef.current ? editorRef.current.innerText : "";
+    // jsdom (the test environment) has no layout engine, so `innerText` --
+    // which depends on one -- is never defined there; `textContent` is a
+    // fine stand-in for counting words either way.
+    const el = editorRef.current;
+    const text = el ? el.innerText || el.textContent || "" : "";
     const t = text.trim();
     setWords(t ? t.split(/\s+/).length : 0);
   }, []);
 
   React.useEffect(() => {
-    if (editorRef.current && editorRef.current.innerHTML.trim() === "") {
-      editorRef.current.innerHTML = NOTE.content_html;
+    if (editorRef.current && editorRef.current.innerHTML.trim() === "" && initialContentHtml) {
+      editorRef.current.innerHTML = initialContentHtml;
     }
     countWords();
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current);
       if (deleteTimer.current) clearTimeout(deleteTimer.current);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [countWords]);
 
   const scheduleSave = React.useCallback(() => {
@@ -129,17 +173,17 @@ export default function Screen() {
   };
 
   const refreshFormats = () => {
-    try {
-      const block = String(document.queryCommandValue("formatBlock") || "").toLowerCase();
-      setFmt({
-        bold: document.queryCommandState("bold"),
-        ul: document.queryCommandState("insertUnorderedList"),
-        ol: document.queryCommandState("insertOrderedList"),
-        h: block === "h3" || block === "<h3>",
-      });
-    } catch (e) {
-      /* selection not in a formattable context */
-    }
+    const el = editorRef.current;
+    if (!el) return;
+    const sel = window.getSelection();
+    const node = sel && sel.rangeCount ? sel.anchorNode : null;
+    const active = getActiveFormats(el, node);
+    setFmt({
+      bold: active.bold,
+      h: active.heading,
+      ul: active.bulletedList,
+      ol: active.numberedList,
+    });
   };
 
   const handleInput = () => {
@@ -149,7 +193,10 @@ export default function Screen() {
     refreshFormats();
   };
 
-  const exec = (command, value) => {
+  // AC-012: bold, heading and list formatting is applied to the selected text
+  // (or the caret's block) as real DOM markup, so it is preserved in the
+  // note's content exactly as it is read back from `editorRef.current.innerHTML`.
+  const applyFormat = (kind) => {
     const el = editorRef.current;
     if (!el) return;
     el.focus();
@@ -162,46 +209,47 @@ export default function Screen() {
         /* range no longer valid */
       }
     }
-    try {
-      document.execCommand(command, false, value);
-    } catch (e) {
-      /* command unsupported */
-    }
+    const range = sel && sel.rangeCount ? sel.getRangeAt(0) : null;
+    if (!range) return;
+    if (kind === "bold") applyBold(el, range);
+    else if (kind === "heading") applyHeading(el, range);
+    else if (kind === "bulletedList") applyBulletedList(el, range);
+    else if (kind === "numberedList") applyNumberedList(el, range);
     handleInput();
   };
 
   const toolbar = [
     {
-      id: "b-2-0",
+      id: "bold-btn",
       glyph: "B",
       label: "Bold",
       span: "sm:col-span-2",
       active: fmt.bold,
-      run: () => exec("bold"),
+      run: () => applyFormat("bold"),
     },
     {
-      id: "b-2-1",
+      id: "heading-btn",
       glyph: "H",
       label: "Heading",
       span: "sm:col-span-3",
       active: fmt.h,
-      run: () => exec("formatBlock", fmt.h ? "<p>" : "<h3>"),
+      run: () => applyFormat("heading"),
     },
     {
-      id: "b-2-2",
+      id: "bulleted-list-btn",
       glyph: "•",
       label: "Bulleted list",
       span: "sm:col-span-3",
       active: fmt.ul,
-      run: () => exec("insertUnorderedList"),
+      run: () => applyFormat("bulletedList"),
     },
     {
-      id: "b-2-3",
+      id: "numbered-list-btn",
       glyph: "1.",
       label: "Numbered list",
       span: "sm:col-span-4",
       active: fmt.ol,
-      run: () => exec("insertOrderedList"),
+      run: () => applyFormat("numberedList"),
     },
   ];
 
@@ -247,18 +295,22 @@ export default function Screen() {
     if (!confirmOpen) return undefined;
     if (cancelBtnRef.current) cancelBtnRef.current.focus();
     const onKey = (e) => {
-      if (e.key === "Escape" && !deleting) {
+      if (e.key === "Escape" && deleteState === "idle") {
         e.preventDefault();
         closeConfirm();
       }
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [confirmOpen, deleting]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [confirmOpen, deleteState]);
 
   const confirmDelete = () => {
-    setDeleting(true);
-    deleteTimer.current = setTimeout(() => navigate("notes"), 650);
+    setDeleteState("deleting");
+    deleteTimer.current = setTimeout(() => {
+      setDeleteState("deleted");
+      deleteTimer.current = setTimeout(() => navigate("notes"), 600);
+    }, 650);
   };
 
   const folderName = (FOLDERS.find((f) => f.id === folder) || FOLDERS[0]).name;
@@ -268,7 +320,7 @@ export default function Screen() {
       ? `All changes saved · ${savedAt}`
       : saveState === "saving"
         ? "Saving your changes…"
-        : "Not saved — we couldn’t reach your notes";
+        : "Unsaved, last change could not be saved";
 
   return (
     <div
@@ -331,7 +383,7 @@ export default function Screen() {
           <div className="col-span-12 sm:col-span-2">
             <button
               type="button"
-              data-wf="b-0-0"
+              data-testid="back-link"
               onClick={() => navigate("notes")}
               className="vf group inline-flex items-center gap-2 py-2 text-[13px] transition-colors"
               style={{ color: muted }}
@@ -343,7 +395,7 @@ export default function Screen() {
             </button>
           </div>
 
-          <div className="col-span-12 sm:col-span-6" data-wf="b-0-1">
+          <div className="col-span-12 sm:col-span-6">
             <div
               role="status"
               aria-live="polite"
@@ -397,7 +449,7 @@ export default function Screen() {
             <Button
               type="button"
               ref={deleteBtnRef}
-              data-wf="b-0-2"
+              data-testid="delete-note-btn"
               onClick={openConfirm}
               aria-haspopup="dialog"
               aria-expanded={confirmOpen}
@@ -434,13 +486,13 @@ export default function Screen() {
                 className="text-[11px] uppercase tracking-[0.18em]"
                 style={{ color: accent, fontVariantNumeric: "tabular-nums" }}
               >
-                {NOTE.id}
+                {noteId}
               </span>
             </div>
             <h1 className="mt-2">
               <Input
                 id="note-title"
-                data-wf="b-1-0"
+                data-testid="title-q1-planning-input"
                 value={title}
                 onChange={(e) => {
                   setTitle(e.target.value);
@@ -465,11 +517,11 @@ export default function Screen() {
               className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px]"
               style={{ color: muted }}
             >
-              <span style={{ fontVariantNumeric: "tabular-nums" }}>Created {NOTE.created_at}</span>
+              <span style={{ fontVariantNumeric: "tabular-nums" }}>Created {initialCreatedAt}</span>
               <span aria-hidden="true" style={{ color: hair }}>
                 /
               </span>
-              <span style={{ fontVariantNumeric: "tabular-nums" }}>Updated {NOTE.updated_at}</span>
+              <span style={{ fontVariantNumeric: "tabular-nums" }}>Updated {initialUpdatedAt}</span>
               <span aria-hidden="true" style={{ color: hair }}>
                 /
               </span>
@@ -503,7 +555,7 @@ export default function Screen() {
               <button
                 key={t.id}
                 type="button"
-                data-wf={t.id}
+                data-testid={t.id}
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={t.run}
                 aria-pressed={t.active}
@@ -534,7 +586,8 @@ export default function Screen() {
           </div>
         </div>
 
-        {/* Row 4 ─ content */}
+        {/* Row 4 ─ content. AC-013: text only -- no image or file attachment
+            option is offered anywhere in this editor. */}
         <div className="mt-4">
           <Label id="note-content-label" className="sr-only">
             Note content
@@ -550,7 +603,7 @@ export default function Screen() {
           >
             <div
               ref={editorRef}
-              data-wf="b-3-0"
+              data-testid="note-content-agenda-budget-review-input"
               role="textbox"
               aria-multiline="true"
               aria-labelledby="note-content-label"
@@ -581,7 +634,7 @@ export default function Screen() {
 
         {/* Row 5 ─ organise */}
         <form
-          data-wf="b-4-0"
+          data-testid="organise-this-note-form"
           onSubmit={addTag}
           className="mt-10"
           style={{
@@ -614,7 +667,7 @@ export default function Screen() {
               </Label>
               <Select
                 id="note-folder"
-                data-wf="i-4-0-0"
+                data-testid="folder-work-input"
                 value={folder}
                 onChange={changeFolder}
                 className="vf mt-2 min-h-[44px] w-full"
@@ -653,7 +706,7 @@ export default function Screen() {
 
               {tags.length > 0 ? (
                 <ul
-                  data-wf="i-4-0-1"
+                  data-testid="tags-planning-q1-remove-tag-input"
                   aria-labelledby="tags-label"
                   className="mt-3 flex flex-wrap gap-2"
                 >
@@ -685,7 +738,7 @@ export default function Screen() {
                   ))}
                 </ul>
               ) : (
-                <div data-wf="i-4-0-1" aria-labelledby="tags-label">
+                <div data-testid="tags-planning-q1-remove-tag-input" aria-labelledby="tags-label">
                   <p className="mt-3 text-[13px]" style={{ color: muted }}>
                     No tags on this note yet. Add one below — “planning” or “q1” are good starts.
                   </p>
@@ -753,14 +806,14 @@ export default function Screen() {
       {/* Row 6 ─ delete confirmation */}
       {confirmOpen && (
         <div
-          data-wf="b-5-0"
           className="vel-fade fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center"
           style={{ backgroundColor: withAlpha(brand.backgroundColor, 0.82) }}
           onMouseDown={(e) => {
-            if (e.target === e.currentTarget && !deleting) closeConfirm();
+            if (e.target === e.currentTarget && deleteState === "idle") closeConfirm();
           }}
         >
           <div
+            data-testid="delete-this-note-this-cannot-be-un-modal"
             role="dialog"
             aria-modal="true"
             aria-labelledby="delete-title"
@@ -799,49 +852,62 @@ export default function Screen() {
               </p>
               <div className="mt-6 h-px w-full" style={{ backgroundColor: hairSoft }} />
             </div>
-            <div
-              className="flex flex-col-reverse gap-3 px-6 py-5 sm:flex-row sm:justify-end"
-              style={{
-                backgroundColor: brand.backgroundColor,
-                borderRadius: `0 0 ${brand.radius} ${brand.radius}`,
-              }}
-            >
-              <Button
-                type="button"
-                ref={cancelBtnRef}
-                data-wf="i-5-0-0"
-                onClick={closeConfirm}
-                disabled={deleting}
-                className="vf min-h-[44px] px-4 text-[13px]"
+            {deleteState === "deleted" ? (
+              <div
+                role="status"
+                className="px-6 py-5 text-[14px]"
                 style={{
-                  backgroundColor: "transparent",
+                  backgroundColor: brand.backgroundColor,
                   color: brand.primaryColor,
-                  border: `1px solid ${hair}`,
-                  borderRadius: brand.radius,
-                  opacity: deleting ? 0.5 : 1,
+                  borderRadius: `0 0 ${brand.radius} ${brand.radius}`,
                 }}
               >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                data-wf="i-5-0-1"
-                onClick={confirmDelete}
-                disabled={deleting}
-                className="vf inline-flex min-h-[44px] items-center justify-center gap-2 px-4 text-[13px]"
+                Note deleted
+              </div>
+            ) : (
+              <div
+                className="flex flex-col-reverse gap-3 px-6 py-5 sm:flex-row sm:justify-end"
                 style={{
-                  backgroundColor: brand.primaryColor,
-                  color: brand.backgroundColor,
-                  border: `1px solid ${brand.primaryColor}`,
-                  borderRadius: brand.radius,
-                  fontWeight: 600,
-                  opacity: deleting ? 0.75 : 1,
+                  backgroundColor: brand.backgroundColor,
+                  borderRadius: `0 0 ${brand.radius} ${brand.radius}`,
                 }}
               >
-                <Trash className="h-4 w-4" aria-hidden="true" />
-                {deleting ? "Deleting…" : "Delete note"}
-              </Button>
-            </div>
+                <Button
+                  type="button"
+                  ref={cancelBtnRef}
+                  onClick={closeConfirm}
+                  disabled={deleteState === "deleting"}
+                  className="vf min-h-[44px] px-4 text-[13px]"
+                  style={{
+                    backgroundColor: "transparent",
+                    color: brand.primaryColor,
+                    border: `1px solid ${hair}`,
+                    borderRadius: brand.radius,
+                    opacity: deleteState === "deleting" ? 0.5 : 1,
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  data-testid="delete-note-link"
+                  onClick={confirmDelete}
+                  disabled={deleteState === "deleting"}
+                  className="vf inline-flex min-h-[44px] items-center justify-center gap-2 px-4 text-[13px]"
+                  style={{
+                    backgroundColor: brand.primaryColor,
+                    color: brand.backgroundColor,
+                    border: `1px solid ${brand.primaryColor}`,
+                    borderRadius: brand.radius,
+                    fontWeight: 600,
+                    opacity: deleteState === "deleting" ? 0.75 : 1,
+                  }}
+                >
+                  <Trash className="h-4 w-4" aria-hidden="true" />
+                  {deleteState === "deleting" ? "Deleting…" : "Delete note"}
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       )}

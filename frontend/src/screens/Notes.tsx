@@ -6,6 +6,7 @@ import * as UI from "@/lib/ui";
 import { Icons } from "@/lib/icons";
 import { brand } from "@/lib/brand";
 import { useNavigate } from "@/lib/navigate";
+import { api } from "@/api/client";
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const { Button, Input, Label, Badge, Table, Empty } = UI;
@@ -31,11 +32,11 @@ const DESTRUCTIVE = "#c2806f";
 const FAIL_ONCE_ID = "n-2117";
 
 const FILTERS = [
-  { key: "all", label: "All notes", wf: "i-2-0-0" },
-  { key: "folder:Work", label: "Folder: Work", wf: "i-2-0-1" },
-  { key: "folder:Personal", label: "Folder: Personal", wf: "i-2-0-2" },
-  { key: "tag:ideas", label: "Tag: ideas", wf: "i-2-0-3" },
-  { key: "tag:recipes", label: "Tag: recipes", wf: "i-2-0-4" },
+  { key: "all", label: "All notes", testId: "all-notes-select" },
+  { key: "folder:Work", label: "Folder: Work", testId: "folder-work-select" },
+  { key: "folder:Personal", label: "Folder: Personal", testId: "folder-personal-select" },
+  { key: "tag:ideas", label: "Tag: ideas", testId: "tag-ideas-select" },
+  { key: "tag:recipes", label: "Tag: recipes", testId: "tag-recipes-select" },
 ];
 
 const NOTE_SEED = [
@@ -257,11 +258,11 @@ const NOTE_SEED = [
   },
 ];
 
-const WF_ROW_IDS = {
-  "n-4821": "i-3-0-0",
-  "n-4817": "i-3-0-1",
-  "n-4790": "i-3-0-2",
-  "n-4755": "i-3-0-3",
+const ROW_TEST_IDS = {
+  "n-4821": "q1-planning-agenda-owners-open-risk-link",
+  "n-4817": "reading-list-three-books-to-finish-link",
+  "n-4790": "sourdough-timings-starter-at-9am-re-link",
+  "n-4755": "flat-move-checklist-personal-update-link",
 };
 
 export default function Screen() {
@@ -281,6 +282,13 @@ export default function Screen() {
   const [failedOnce, setFailedOnce] = React.useState(false);
   const [toast, setToast] = React.useState(null);
   const [sync, setSync] = React.useState("live"); // live | stale
+  const [online, setOnline] = React.useState(() =>
+    typeof navigator === "undefined" ? true : navigator.onLine,
+  );
+  // AC-011: "New note" (top, or the empty-state link) creates a real, empty
+  // note owned by the signed-in user and opens it straight in the editor.
+  const [creating, setCreating] = React.useState(false);
+  const [createError, setCreateError] = React.useState("");
 
   const timers = React.useRef([]);
   const dialogRef = React.useRef(null);
@@ -292,6 +300,30 @@ export default function Screen() {
   React.useEffect(() => {
     if (pending && cancelRef.current) cancelRef.current.focus();
   }, [pending]);
+
+  React.useEffect(() => {
+    const goOnline = () => setOnline(true);
+    const goOffline = () => setOnline(false);
+    window.addEventListener("online", goOnline);
+    window.addEventListener("offline", goOffline);
+    return () => {
+      window.removeEventListener("online", goOnline);
+      window.removeEventListener("offline", goOffline);
+    };
+  }, []);
+
+  const handleNewNote = async () => {
+    if (creating) return;
+    setCreating(true);
+    setCreateError("");
+    const { data } = await api.POST("/notes", {});
+    setCreating(false);
+    if (data) {
+      navigate("note-detail", { state: { note: data } });
+      return;
+    }
+    setCreateError("Something went wrong creating your note. Try again.");
+  };
 
   const q = query.trim().toLowerCase();
   const matchesFilter = (n) => {
@@ -358,7 +390,7 @@ export default function Screen() {
       setPending(null);
       setDeleteState("idle");
       setSync("live");
-      setToast("Deleted “" + note.title + "”. It is gone from your list and from search.");
+      setToast("Note deleted");
       const t2 = setTimeout(() => setToast(null), 6000);
       timers.current.push(t2);
     }, 720);
@@ -422,10 +454,26 @@ export default function Screen() {
       `}</style>
 
       <div className="mx-auto w-full max-w-5xl">
+        {!online && (
+          <div
+            role="alert"
+            className="mb-6 flex items-start gap-3 px-4 py-3 text-[13px]"
+            style={{ ...panelStyle, borderLeft: "2px solid " + DESTRUCTIVE }}
+          >
+            <AlertCircle
+              className="mt-0.5 h-4 w-4 shrink-0"
+              aria-hidden="true"
+              style={{ color: DESTRUCTIVE }}
+            />
+            <span>You need an internet connection to use Notes</span>
+          </div>
+        )}
+
         {/* Row 1 — title + primary action */}
         <div className="grid grid-cols-12 items-end gap-4">
-          <div className="col-span-12 sm:col-span-8" data-wf="b-0-0">
+          <div className="col-span-12 sm:col-span-8">
             <h1
+              data-testid="my-notes-title"
               className="text-[34px] leading-tight sm:text-[40px]"
               style={{ fontFamily: brand.fontHeading, letterSpacing: "-0.01em" }}
             >
@@ -441,10 +489,11 @@ export default function Screen() {
           </div>
           <div className="col-span-12 flex sm:col-span-4 sm:justify-end">
             <Button
-              data-wf="b-0-1"
+              data-testid="new-note-btn"
               type="button"
-              onClick={() => navigate("note-detail")}
-              className="inline-flex h-11 w-full items-center justify-center gap-2 px-5 text-[14px] font-semibold transition-opacity hover:opacity-90 sm:w-auto"
+              disabled={creating}
+              onClick={handleNewNote}
+              className="inline-flex h-11 w-full items-center justify-center gap-2 px-5 text-[14px] font-semibold transition-opacity hover:opacity-90 disabled:opacity-70 sm:w-auto"
               style={{
                 backgroundColor: accent,
                 color: brand.backgroundColor,
@@ -453,16 +502,31 @@ export default function Screen() {
               }}
             >
               <Plus className="h-4 w-4" aria-hidden="true" />
-              New note
+              {creating ? "Creating…" : "New note"}
             </Button>
           </div>
         </div>
+
+        {createError && (
+          <div
+            role="alert"
+            className="mt-4 flex items-start gap-3 px-4 py-3 text-[13px]"
+            style={{ ...panelStyle, borderLeft: "2px solid " + DESTRUCTIVE }}
+          >
+            <AlertCircle
+              className="mt-0.5 h-4 w-4 shrink-0"
+              aria-hidden="true"
+              style={{ color: DESTRUCTIVE }}
+            />
+            <span>{createError}</span>
+          </div>
+        )}
 
         <div className="mt-6" style={{ height: "1px", backgroundColor: withAlpha(accent, 0.45) }} />
 
         {/* Row 2 — search */}
         <div className="mt-7 grid grid-cols-12 items-end gap-3">
-          <div className="col-span-12 sm:col-span-9" data-wf="b-1-0">
+          <div className="col-span-12 sm:col-span-9">
             <Label htmlFor="note-search" className={labelCls} style={{ color: muted }}>
               Search your notes
             </Label>
@@ -474,6 +538,7 @@ export default function Screen() {
               />
               <Input
                 id="note-search"
+                data-testid="search-titles-and-content-input"
                 ref={searchRef}
                 type="search"
                 value={query}
@@ -491,7 +556,7 @@ export default function Screen() {
           </div>
           <div className="col-span-12 sm:col-span-3">
             <Button
-              data-wf="b-1-1"
+              data-testid="clear-search-btn"
               type="button"
               disabled={!query}
               onClick={() => {
@@ -512,7 +577,7 @@ export default function Screen() {
         </div>
 
         {/* Row 3 — filters */}
-        <section className="mt-7" data-wf="b-2-0" aria-labelledby="filter-heading">
+        <section className="mt-7" aria-labelledby="filter-heading">
           <h2 id="filter-heading" className={labelCls} style={{ color: muted }}>
             Filter by folder or tag
           </h2>
@@ -522,7 +587,7 @@ export default function Screen() {
               return (
                 <button
                   key={f.key}
-                  data-wf={f.wf}
+                  data-testid={f.testId}
                   type="button"
                   aria-pressed={on}
                   onClick={() => setFilter(f.key)}
@@ -542,7 +607,7 @@ export default function Screen() {
               );
             })}
             <button
-              data-wf="i-2-0-5"
+              data-testid="clear-select"
               type="button"
               disabled={filter === "all"}
               onClick={() => setFilter("all")}
@@ -560,7 +625,7 @@ export default function Screen() {
         </section>
 
         {/* Row 4 — list */}
-        <section className="mt-8" data-wf="b-3-0" aria-labelledby="list-heading">
+        <section className="mt-8" aria-labelledby="list-heading">
           <div className="flex flex-wrap items-baseline justify-between gap-3">
             <h2
               id="list-heading"
@@ -622,7 +687,11 @@ export default function Screen() {
           )}
 
           {notes.length > 0 && visible.length > 0 && (
-            <ul className="mt-4" style={{ ...panelStyle, overflow: "hidden" }}>
+            <ul
+              data-testid="24-notes-list"
+              className="mt-4"
+              style={{ ...panelStyle, overflow: "hidden" }}
+            >
               {visible.map((n, idx) => (
                 <li
                   key={n.id}
@@ -638,7 +707,7 @@ export default function Screen() {
                       />
                     </div>
                     <button
-                      data-wf={WF_ROW_IDS[n.id]}
+                      data-testid={ROW_TEST_IDS[n.id]}
                       type="button"
                       onClick={() => navigate("note-detail")}
                       className="min-w-0 flex-1 px-4 py-4 text-left transition-colors sm:px-5"
@@ -719,12 +788,7 @@ export default function Screen() {
           {notes.length > 0 && visible.length === 0 && (
             <div className="mt-4 px-6 py-12" style={panelStyle}>
               <Empty
-                title={
-                  q
-                    ? "Nothing matches “" + query.trim() + "”"
-                    : "Nothing filed under " +
-                      (activeFilter ? activeFilter.label.toLowerCase() : "this filter")
-                }
+                title="No notes match your search"
                 description={
                   q
                     ? "We looked through every title and every line of your " +
@@ -764,7 +828,7 @@ export default function Screen() {
 
         {/* Row 5 — first-use empty state */}
         {notes.length === 0 && (
-          <section className="mt-8" data-wf="b-4-0">
+          <section className="mt-8" data-testid="no-notes-yet-create-your-first-not-empty">
             <div className="px-6 py-16 text-center" style={panelStyle}>
               <div
                 className="mx-auto mb-6 flex h-14 w-14 items-center justify-center"
@@ -787,10 +851,11 @@ export default function Screen() {
               </p>
               <div className="mt-7 flex justify-center">
                 <Button
-                  data-wf="i-4-0-0"
+                  data-testid="new-note-link"
                   type="button"
-                  onClick={() => navigate("note-detail")}
-                  className="inline-flex h-11 items-center justify-center gap-2 px-6 text-[14px] font-semibold transition-opacity hover:opacity-90"
+                  disabled={creating}
+                  onClick={handleNewNote}
+                  className="inline-flex h-11 items-center justify-center gap-2 px-6 text-[14px] font-semibold transition-opacity hover:opacity-90 disabled:opacity-70"
                   style={{
                     backgroundColor: accent,
                     color: brand.backgroundColor,
@@ -799,7 +864,7 @@ export default function Screen() {
                   }}
                 >
                   <Plus className="h-4 w-4" aria-hidden="true" />
-                  New note
+                  {creating ? "Creating…" : "New note"}
                 </Button>
               </div>
             </div>
@@ -817,7 +882,7 @@ export default function Screen() {
           }}
         >
           <div
-            data-wf="b-5-0"
+            data-testid="delete-this-note-this-cannot-be-un-modal"
             ref={dialogRef}
             role="dialog"
             aria-modal="true"
@@ -872,7 +937,6 @@ export default function Screen() {
 
             <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
               <Button
-                data-wf="i-5-0-0"
                 ref={cancelRef}
                 type="button"
                 onClick={closeModal}
@@ -888,7 +952,6 @@ export default function Screen() {
                 Cancel
               </Button>
               <Button
-                data-wf="i-5-1-1"
                 type="button"
                 onClick={confirmDelete}
                 disabled={deleteState === "working"}

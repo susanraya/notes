@@ -114,6 +114,32 @@
         }
       }
     },
+    "/notes": {
+      "post": {
+        "tags": [
+          "Notes"
+        ],
+        "summary": "Create Note",
+        "operationId": "create_note_notes_post",
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NoteResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/health": {
       "get": {
         "summary": "Health",
@@ -206,6 +232,42 @@
           "token"
         ],
         "title": "LoginResponse"
+      },
+      "NoteResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "contentHtml": {
+            "type": "string",
+            "title": "Contenthtml"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updatedat"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "contentHtml",
+          "createdAt",
+          "updatedAt"
+        ],
+        "title": "NoteResponse",
+        "description": "A note as returned to the client (POST /notes). AC-011 (US-005)."
       },
       "RegisterRequest": {
         "properties": {

@@ -26,7 +26,7 @@ export function toPath(route: string): string {
   );
 }
 
-export function useNavigate(): (route: string) => void {
+export function useNavigate(): (route: string, options?: { state?: unknown }) => void {
   const navigate = useRouterNavigate();
-  return (route: string) => navigate(toPath(route));
+  return (route: string, options?: { state?: unknown }) => navigate(toPath(route), options);
 }
