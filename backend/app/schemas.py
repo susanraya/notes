@@ -30,3 +30,19 @@ class UserRead(ApiModel):
     id: str
     email: str
     role: str
+
+
+class RegisterRequest(ApiModel):
+    email: str
+    password: str
+
+
+class RegisteredUser(ApiModel):
+    id: str
+    email: str
+
+
+class RegisterResponse(ApiModel):
+    # "token", not "access_token": matches the shape /auth/login already returns.
+    token: str
+    user: RegisteredUser

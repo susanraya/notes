@@ -51,3 +51,108 @@ def test_the_seed_makes_its_users_once(db_session: Session) -> None:
 
     assert seed(db_session, settings) == 2
     assert seed(db_session, settings) == 0
+
+
+# --- US-001: Register with email and password (POST /auth/register) ---
+
+
+def test_tc011_register_creates_account_and_empty_notes_space(client: TestClient) -> None:
+    new_pw = "SecurePass123!"
+
+    response = client.post(
+        "/auth/register",
+        json={
+            "email": "alice@example.com",
+            "password": new_pw,
+            "confirmPassword": new_pw,
+        },
+    )
+
+    assert response.status_code == 201, response.text
+    body = response.json()
+    assert body["token"]
+    assert body["user"]["email"] == "alice@example.com"
+
+    notes_response = client.get("/notes", headers={"Authorization": f"Bearer {body['token']}"})
+
+    assert notes_response.status_code == 200, notes_response.text
+    assert notes_response.json() == []
+
+
+def test_tc013_registering_with_an_already_used_email_is_rejected(client: TestClient) -> None:
+    first_pw = "SecurePass123!"
+    second_pw = "AnotherPass456!"
+
+    first = client.post(
+        "/auth/register",
+        json={
+            "email": "alice@example.com",
+            "password": first_pw,
+            "confirmPassword": first_pw,
+        },
+    )
+    assert first.status_code == 201, first.text
+
+    response = client.post(
+        "/auth/register",
+        json={
+            "email": "alice@example.com",
+            "password": second_pw,
+            "confirmPassword": second_pw,
+        },
+    )
+
+    assert response.status_code == 409, response.text
+    assert "note" not in response.text.lower()
+
+
+def test_tc015_registering_with_an_invalid_email_format_is_rejected(client: TestClient) -> None:
+    new_pw = "SecurePass123!"
+
+    response = client.post(
+        "/auth/register",
+        json={
+            "email": "bob.example.com",
+            "password": new_pw,
+            "confirmPassword": new_pw,
+        },
+    )
+
+    assert response.status_code == 422, response.text
+    errors = response.json().get("detail", [])
+    assert any("email" in str(error.get("loc", [])).lower() for error in errors), response.text
+
+
+def test_tc016_registering_with_a_too_short_password_is_rejected(client: TestClient) -> None:
+    weak_pw = "abc123"
+
+    response = client.post(
+        "/auth/register",
+        json={
+            "email": "carol@example.com",
+            "password": weak_pw,
+            "confirmPassword": weak_pw,
+        },
+    )
+
+    assert response.status_code == 422, response.text
+    errors = response.json().get("detail", [])
+    assert any("password" in str(error.get("loc", [])).lower() for error in errors), response.text
+
+
+def test_tc019_stored_password_is_hashed_never_plain_text(client: TestClient) -> None:
+    new_pw = "HashedPass789!"
+
+    response = client.post(
+        "/auth/register",
+        json={
+            "email": "dave@example.com",
+            "password": new_pw,
+            "confirmPassword": new_pw,
+        },
+    )
+
+    assert response.status_code == 201, response.text
+    body = response.json()
+    assert body["token"]
+    assert new_pw not in response.text

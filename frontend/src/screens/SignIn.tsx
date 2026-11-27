@@ -44,7 +44,7 @@ export default function Screen() {
   const [formError, setFormError] = React.useState("");
   const [resetNote, setResetNote] = React.useState("");
   const [online, setOnline] = React.useState(
-    typeof navigator === "undefined" || navigator.onLine !== false
+    typeof navigator === "undefined" || navigator.onLine !== false,
   );
 
   const emailRef = React.useRef(null);
@@ -98,7 +98,9 @@ export default function Screen() {
 
     if (!online) {
       setStatus("error");
-      setFormError("No connection. Notes needs to reach the server to sign you in — your email and password are still here.");
+      setFormError(
+        "No connection. Notes needs to reach the server to sign you in — your email and password are still here.",
+      );
       return;
     }
 
@@ -108,7 +110,9 @@ export default function Screen() {
     after(900, () => {
       if (password.length < 8) {
         setStatus("error");
-        setFormError("We could not sign you in with that email and password. Check both and try again.");
+        setFormError(
+          "We could not sign you in with that email and password. Check both and try again.",
+        );
         if (passwordRef.current) passwordRef.current.focus();
         return;
       }
@@ -121,12 +125,19 @@ export default function Screen() {
     if (busy) return;
     setFormError("");
     if (!isEmailish(email)) {
-      setFieldErrors((f) => ({ ...f, email: "Add your email address first — the reset link goes there." }));
+      setFieldErrors((f) => ({
+        ...f,
+        email: "Add your email address first — the reset link goes there.",
+      }));
       if (emailRef.current) emailRef.current.focus();
       return;
     }
     setFieldErrors((f) => ({ ...f, email: "" }));
-    setResetNote("If an account exists for " + email.trim() + ", a reset link is on its way. It expires in 30 minutes.");
+    setResetNote(
+      "If an account exists for " +
+        email.trim() +
+        ", a reset link is on its way. It expires in 30 minutes.",
+    );
   }
 
   const fieldStyle = {
@@ -242,7 +253,10 @@ export default function Screen() {
             </ul>
           </div>
 
-          <p className="mt-12 max-w-[42ch] text-[13px] leading-relaxed" style={{ color: brand.neutralColor }}>
+          <p
+            className="mt-12 max-w-[42ch] text-[13px] leading-relaxed"
+            style={{ color: brand.neutralColor }}
+          >
             Every note belongs to one account and is visible only to it. Signing out ends the
             session on this device straight away.
           </p>
@@ -310,10 +324,14 @@ export default function Screen() {
                 }}
                 role="status"
               >
-                <AlertCircle className="mt-[2px] h-4 w-4 shrink-0" style={{ color: brand.accentColor }} aria-hidden="true" />
+                <AlertCircle
+                  className="mt-[2px] h-4 w-4 shrink-0"
+                  style={{ color: brand.accentColor }}
+                  aria-hidden="true"
+                />
                 <p className="text-[13px] leading-relaxed" style={{ color: brand.primaryColor }}>
-                  <span className="font-medium">Offline.</span> Notes works online only. We will keep
-                  what you have typed and let you sign in as soon as the connection returns.
+                  <span className="font-medium">Offline.</span> Notes works online only. We will
+                  keep what you have typed and let you sign in as soon as the connection returns.
                 </p>
               </div>
             )}
@@ -423,8 +441,15 @@ export default function Screen() {
                       borderRadius: brand.radius,
                     }}
                   >
-                    <AlertCircle className="mt-[2px] h-4 w-4 shrink-0" style={{ color: brand.accentColor }} aria-hidden="true" />
-                    <p className="text-[13px] leading-relaxed" style={{ color: brand.primaryColor }}>
+                    <AlertCircle
+                      className="mt-[2px] h-4 w-4 shrink-0"
+                      style={{ color: brand.accentColor }}
+                      aria-hidden="true"
+                    />
+                    <p
+                      className="text-[13px] leading-relaxed"
+                      style={{ color: brand.primaryColor }}
+                    >
                       {formError}
                     </p>
                   </div>
@@ -439,8 +464,15 @@ export default function Screen() {
                       borderRadius: brand.radius,
                     }}
                   >
-                    <CheckCircle className="mt-[2px] h-4 w-4 shrink-0" style={{ color: brand.accentColor }} aria-hidden="true" />
-                    <p className="text-[13px] leading-relaxed" style={{ color: brand.primaryColor }}>
+                    <CheckCircle
+                      className="mt-[2px] h-4 w-4 shrink-0"
+                      style={{ color: brand.accentColor }}
+                      aria-hidden="true"
+                    />
+                    <p
+                      className="text-[13px] leading-relaxed"
+                      style={{ color: brand.primaryColor }}
+                    >
                       {resetNote}
                     </p>
                   </div>
@@ -455,7 +487,11 @@ export default function Screen() {
                       borderRadius: brand.radius,
                     }}
                   >
-                    <CheckCircle className="h-4 w-4 shrink-0" style={{ color: brand.accentColor }} aria-hidden="true" />
+                    <CheckCircle
+                      className="h-4 w-4 shrink-0"
+                      style={{ color: brand.accentColor }}
+                      aria-hidden="true"
+                    />
                     <p className="text-[13px]" style={{ color: brand.primaryColor }}>
                       Signed in. Opening your notes…
                     </p>
@@ -479,9 +515,18 @@ export default function Screen() {
                   {status === "submitting" ? (
                     <>
                       <span className="flex items-center gap-1" aria-hidden="true">
-                        <span className="v-dot h-1.5 w-1.5 rounded-full" style={{ backgroundColor: brand.backgroundColor }} />
-                        <span className="v-dot h-1.5 w-1.5 rounded-full" style={{ backgroundColor: brand.backgroundColor }} />
-                        <span className="v-dot h-1.5 w-1.5 rounded-full" style={{ backgroundColor: brand.backgroundColor }} />
+                        <span
+                          className="v-dot h-1.5 w-1.5 rounded-full"
+                          style={{ backgroundColor: brand.backgroundColor }}
+                        />
+                        <span
+                          className="v-dot h-1.5 w-1.5 rounded-full"
+                          style={{ backgroundColor: brand.backgroundColor }}
+                        />
+                        <span
+                          className="v-dot h-1.5 w-1.5 rounded-full"
+                          style={{ backgroundColor: brand.backgroundColor }}
+                        />
                       </span>
                       <span>Checking your details…</span>
                     </>
@@ -538,8 +583,8 @@ export default function Screen() {
                 style={{ backgroundColor: online ? brand.accentColor : brand.neutralColor }}
                 aria-hidden="true"
               />
-              {online ? "Connected" : "No connection"} · Notes keeps passwords hashed, never in plain
-              text.
+              {online ? "Connected" : "No connection"} · Notes keeps passwords hashed, never in
+              plain text.
             </p>
           </div>
         </main>

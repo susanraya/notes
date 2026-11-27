@@ -20,7 +20,7 @@ const NOTE = {
   created_at: "18 Nov 2026",
   updated_at: "26 Nov 2026",
   content_html:
-    '<h3>Agenda</h3><p>Budget review, hiring plan, open risks. <strong>Three decisions needed before 12 Dec.</strong></p><ul><li>Budget review — Nadia walks through the revised Q1 envelope (£1.4m)</li><li>Hiring plan — two engineers, one product designer</li><li>Open risks — Hallam renewal, the data migration window</li></ul><h3>Follow-ups</h3><ol><li>Send the revised envelope to Priya by Friday</li><li>Book the migration window with Infrastructure</li><li>Confirm the designer brief with Studio</li></ol><p>Notes from the 24 Nov pre-read are in the <strong>Research</strong> folder.</p>',
+    "<h3>Agenda</h3><p>Budget review, hiring plan, open risks. <strong>Three decisions needed before 12 Dec.</strong></p><ul><li>Budget review — Nadia walks through the revised Q1 envelope (£1.4m)</li><li>Hiring plan — two engineers, one product designer</li><li>Open risks — Hallam renewal, the data migration window</li></ul><h3>Follow-ups</h3><ol><li>Send the revised envelope to Priya by Friday</li><li>Book the migration window with Infrastructure</li><li>Confirm the designer brief with Studio</li></ol><p>Notes from the 24 Nov pre-read are in the <strong>Research</strong> folder.</p>",
 };
 
 const FOLDERS = [
@@ -35,7 +35,13 @@ const OWNER_EMAIL = "susan.raya@quorq.ai";
 
 const withAlpha = (hex, a) => {
   const h = String(hex || "#000000").replace("#", "");
-  const v = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
+  const v =
+    h.length === 3
+      ? h
+          .split("")
+          .map((c) => c + c)
+          .join("")
+      : h;
   const n = parseInt(v, 16);
   if (Number.isNaN(n)) return `rgba(0,0,0,${a})`;
   return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
@@ -165,7 +171,14 @@ export default function Screen() {
   };
 
   const toolbar = [
-    { id: "b-2-0", glyph: "B", label: "Bold", span: "sm:col-span-2", active: fmt.bold, run: () => exec("bold") },
+    {
+      id: "b-2-0",
+      glyph: "B",
+      label: "Bold",
+      span: "sm:col-span-2",
+      active: fmt.bold,
+      run: () => exec("bold"),
+    },
     {
       id: "b-2-1",
       glyph: "H",
@@ -174,8 +187,22 @@ export default function Screen() {
       active: fmt.h,
       run: () => exec("formatBlock", fmt.h ? "<p>" : "<h3>"),
     },
-    { id: "b-2-2", glyph: "•", label: "Bulleted list", span: "sm:col-span-3", active: fmt.ul, run: () => exec("insertUnorderedList") },
-    { id: "b-2-3", glyph: "1.", label: "Numbered list", span: "sm:col-span-4", active: fmt.ol, run: () => exec("insertOrderedList") },
+    {
+      id: "b-2-2",
+      glyph: "•",
+      label: "Bulleted list",
+      span: "sm:col-span-3",
+      active: fmt.ul,
+      run: () => exec("insertUnorderedList"),
+    },
+    {
+      id: "b-2-3",
+      glyph: "1.",
+      label: "Numbered list",
+      span: "sm:col-span-4",
+      active: fmt.ol,
+      run: () => exec("insertOrderedList"),
+    },
   ];
 
   const addTag = (e) => {
@@ -240,8 +267,8 @@ export default function Screen() {
     saveState === "saved"
       ? `All changes saved · ${savedAt}`
       : saveState === "saving"
-      ? "Saving your changes…"
-      : "Not saved — we couldn’t reach your notes";
+        ? "Saving your changes…"
+        : "Not saved — we couldn’t reach your notes";
 
   return (
     <div
@@ -327,7 +354,9 @@ export default function Screen() {
                 borderRadius: 999,
               }}
             >
-              {saveState === "saved" && <Check className="h-3.5 w-3.5" aria-hidden="true" style={{ color: accent }} />}
+              {saveState === "saved" && (
+                <Check className="h-3.5 w-3.5" aria-hidden="true" style={{ color: accent }} />
+              )}
               {saveState === "saving" && (
                 <span
                   className="vel-pulse inline-block h-2 w-2 rounded-full"
@@ -335,7 +364,13 @@ export default function Screen() {
                   style={{ backgroundColor: accent }}
                 />
               )}
-              {saveState === "error" && <AlertCircle className="h-3.5 w-3.5" aria-hidden="true" style={{ color: brand.primaryColor }} />}
+              {saveState === "error" && (
+                <AlertCircle
+                  className="h-3.5 w-3.5"
+                  aria-hidden="true"
+                  style={{ color: brand.primaryColor }}
+                />
+              )}
               <span
                 className="text-[13px]"
                 style={{
@@ -426,7 +461,10 @@ export default function Screen() {
                 }}
               />
             </h1>
-            <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px]" style={{ color: muted }}>
+            <p
+              className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px]"
+              style={{ color: muted }}
+            >
               <span style={{ fontVariantNumeric: "tabular-nums" }}>Created {NOTE.created_at}</span>
               <span aria-hidden="true" style={{ color: hair }}>
                 /
@@ -449,10 +487,18 @@ export default function Screen() {
 
         {/* Row 3 ─ formatting */}
         <div className="mt-8">
-          <p className="text-[11px] font-medium uppercase tracking-[0.18em]" style={{ color: muted }} id="format-rail-label">
+          <p
+            className="text-[11px] font-medium uppercase tracking-[0.18em]"
+            style={{ color: muted }}
+            id="format-rail-label"
+          >
             Format
           </p>
-          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-12" role="group" aria-labelledby="format-rail-label">
+          <div
+            className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-12"
+            role="group"
+            aria-labelledby="format-rail-label"
+          >
             {toolbar.map((t) => (
               <button
                 key={t.id}
@@ -528,7 +574,8 @@ export default function Screen() {
             />
           </div>
           <p id="note-content-help" className="mt-2 text-[12px]" style={{ color: muted }}>
-            Text only in this version — bold, headings and lists. Images and file attachments aren’t supported yet.
+            Text only in this version — bold, headings and lists. Images and file attachments aren’t
+            supported yet.
           </p>
         </div>
 
@@ -551,7 +598,8 @@ export default function Screen() {
               Organise this note
             </h2>
             <p className="mt-1 text-[13px]" style={{ color: muted }}>
-              A folder keeps it in one place; tags let it show up in several. Both save as you set them.
+              A folder keeps it in one place; tags let it show up in several. Both save as you set
+              them.
             </p>
           </div>
 
@@ -578,23 +626,37 @@ export default function Screen() {
                 }}
               >
                 {FOLDERS.map((f) => (
-                  <option key={f.id || "none"} value={f.id} style={{ backgroundColor: brand.backgroundColor }}>
+                  <option
+                    key={f.id || "none"}
+                    value={f.id}
+                    style={{ backgroundColor: brand.backgroundColor }}
+                  >
                     {f.name}
                   </option>
                 ))}
               </Select>
               <p className="mt-2 text-[12px]" style={{ color: muted }}>
-                {folder ? `Filed under ${folderName}.` : "Not in a folder — it still appears in My notes."}
+                {folder
+                  ? `Filed under ${folderName}.`
+                  : "Not in a folder — it still appears in My notes."}
               </p>
             </div>
 
             <div className="col-span-12 md:col-span-7">
-              <p className="text-[11px] font-medium uppercase tracking-[0.18em]" style={{ color: muted }} id="tags-label">
+              <p
+                className="text-[11px] font-medium uppercase tracking-[0.18em]"
+                style={{ color: muted }}
+                id="tags-label"
+              >
                 Tags
               </p>
 
               {tags.length > 0 ? (
-                <ul data-wf="i-4-0-1" aria-labelledby="tags-label" className="mt-3 flex flex-wrap gap-2">
+                <ul
+                  data-wf="i-4-0-1"
+                  aria-labelledby="tags-label"
+                  className="mt-3 flex flex-wrap gap-2"
+                >
                   {tags.map((t) => (
                     <li
                       key={t}
@@ -670,7 +732,11 @@ export default function Screen() {
                 </Button>
               </div>
               {tagError && (
-                <p id="tag-error" className="mt-2 inline-flex items-center gap-1.5 text-[12px]" style={{ color: brand.primaryColor }}>
+                <p
+                  id="tag-error"
+                  className="mt-2 inline-flex items-center gap-1.5 text-[12px]"
+                  style={{ color: brand.primaryColor }}
+                >
                   <AlertCircle className="h-3.5 w-3.5" aria-hidden="true" />
                   {tagError}
                 </p>
@@ -708,19 +774,37 @@ export default function Screen() {
               boxShadow: "0 24px 60px rgba(0,0,0,0.55)",
             }}
           >
-            <div className="px-6 pt-6" style={{ backgroundColor: brand.backgroundColor, borderRadius: `${brand.radius} ${brand.radius} 0 0` }}>
-              <h2 id="delete-title" className="text-[22px]" style={{ fontFamily: brand.fontHeading, color: brand.primaryColor }}>
+            <div
+              className="px-6 pt-6"
+              style={{
+                backgroundColor: brand.backgroundColor,
+                borderRadius: `${brand.radius} ${brand.radius} 0 0`,
+              }}
+            >
+              <h2
+                id="delete-title"
+                className="text-[22px]"
+                style={{ fontFamily: brand.fontHeading, color: brand.primaryColor }}
+              >
                 Delete this note? This cannot be undone
               </h2>
-              <p id="delete-desc" className="mt-3 text-[14px] leading-relaxed" style={{ color: muted }}>
-                “{title || "Untitled note"}” and its {tags.length} {tags.length === 1 ? "tag" : "tags"} will be removed from your notes
-                and from search. There is no trash to restore it from.
+              <p
+                id="delete-desc"
+                className="mt-3 text-[14px] leading-relaxed"
+                style={{ color: muted }}
+              >
+                “{title || "Untitled note"}” and its {tags.length}{" "}
+                {tags.length === 1 ? "tag" : "tags"} will be removed from your notes and from
+                search. There is no trash to restore it from.
               </p>
               <div className="mt-6 h-px w-full" style={{ backgroundColor: hairSoft }} />
             </div>
             <div
               className="flex flex-col-reverse gap-3 px-6 py-5 sm:flex-row sm:justify-end"
-              style={{ backgroundColor: brand.backgroundColor, borderRadius: `0 0 ${brand.radius} ${brand.radius}` }}
+              style={{
+                backgroundColor: brand.backgroundColor,
+                borderRadius: `0 0 ${brand.radius} ${brand.radius}`,
+              }}
             >
               <Button
                 type="button"
