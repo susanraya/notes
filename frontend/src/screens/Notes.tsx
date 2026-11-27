@@ -6,6 +6,7 @@ import * as UI from "@/lib/ui";
 import { Icons } from "@/lib/icons";
 import { brand } from "@/lib/brand";
 import { useNavigate } from "@/lib/navigate";
+import { api } from "@/api/client";
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const { Button, Input, Label, Badge, Table, Empty } = UI;
@@ -13,53 +14,256 @@ const { Button, Input, Label, Badge, Table, Empty } = UI;
 const { Plus, Search, Check, X, FileText, Clock, Trash, Filter, AlertCircle, CheckCircle } = Icons;
 
 const withAlpha = (hex, a) => {
-  const h = String(hex).replace('#', '');
-  const v = h.length === 3 ? h.split('').map((c) => c + c).join('') : h;
+  const h = String(hex).replace("#", "");
+  const v =
+    h.length === 3
+      ? h
+          .split("")
+          .map((c) => c + c)
+          .join("")
+      : h;
   const n = parseInt(v, 16);
   return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
 };
 
 // Semantic role token: destructive. Muted clay, used only for delete confirmation + save failures.
-const DESTRUCTIVE = '#c2806f';
+const DESTRUCTIVE = "#c2806f";
 
-const FAIL_ONCE_ID = 'n-2117';
+const FAIL_ONCE_ID = "n-2117";
 
 const FILTERS = [
-  { key: 'all', label: 'All notes', wf: 'i-2-0-0' },
-  { key: 'folder:Work', label: 'Folder: Work', wf: 'i-2-0-1' },
-  { key: 'folder:Personal', label: 'Folder: Personal', wf: 'i-2-0-2' },
-  { key: 'tag:ideas', label: 'Tag: ideas', wf: 'i-2-0-3' },
-  { key: 'tag:recipes', label: 'Tag: recipes', wf: 'i-2-0-4' },
+  { key: "all", label: "All notes", testId: "all-notes-select" },
+  { key: "folder:Work", label: "Folder: Work", testId: "folder-work-select" },
+  { key: "folder:Personal", label: "Folder: Personal", testId: "folder-personal-select" },
+  { key: "tag:ideas", label: "Tag: ideas", testId: "tag-ideas-select" },
+  { key: "tag:recipes", label: "Tag: recipes", testId: "tag-recipes-select" },
 ];
 
 const NOTE_SEED = [
-  { id: 'n-4821', title: 'Q1 planning — agenda, owners, open risks', snippet: 'Agenda: headcount freeze, billing migration, two open risks. Owners — Priya (infra), Tomas (data warehouse).', folder: 'Work', tags: [], updated: '2 hours ago' },
-  { id: 'n-4817', title: 'Reading list — three books to finish', snippet: 'Still on the pile: The Dawn of Everything, Piranesi, A Pattern Language. Started Piranesi on the train.', folder: null, tags: ['ideas'], updated: 'Yesterday, 21:04' },
-  { id: 'n-4790', title: 'Sourdough timings — starter at 9am', snippet: 'Feed starter 9am. Autolyse 12:30, first fold 13:00, four folds at 30 min. Shape 17:00, fridge overnight.', folder: null, tags: ['recipes'], updated: '12 Nov 2026' },
-  { id: 'n-4755', title: 'Flat move checklist', snippet: 'Redirect post from 2 Dec. Book lift at Hanbury Court. Cancel broadband, keep the router box for returns.', folder: 'Personal', tags: [], updated: '4 Nov 2026' },
-  { id: 'n-4826', title: 'Standup notes — 24 Nov', snippet: 'Search indexing back-filled overnight, 1.2M rows. Tomas blocked on the staging key rotation.', folder: 'Work', tags: [], updated: 'Yesterday, 09:14' },
-  { id: 'n-4812', title: 'Miso butter aubergine', snippet: 'Halve, score, 25 min at 210°C. Whisk white miso with butter and mirin, brush twice. Scatter spring onion.', folder: null, tags: ['recipes'], updated: '23 Nov 2026' },
-  { id: 'n-4808', title: 'Interview questions — backend hire', snippet: 'Ask about a migration they rolled back. Pair exercise: paginate a feed without offset. Avoid trick puzzles.', folder: 'Work', tags: [], updated: '22 Nov 2026' },
-  { id: 'n-4801', title: 'Gift ideas for Mum’s birthday', snippet: 'Seed library membership, the Hokusai print she kept mentioning, or a day at the pottery studio in Deptford.', folder: 'Personal', tags: ['ideas'], updated: '21 Nov 2026' },
-  { id: 'n-2117', title: 'Pension transfer — reference numbers', snippet: 'Scheme ref ends 0048. Transfer form posted 18 Nov, allow 10 working days. Chase if nothing by 2 Dec.', folder: 'Personal', tags: [], updated: '20 Nov 2026' },
-  { id: 'n-4788', title: 'Side project: tide clock', snippet: 'One hand, 12h25m cycle. Harmonic data from the admiralty feed. Brass face, walnut surround if I can find offcuts.', folder: null, tags: ['ideas'], updated: '19 Nov 2026' },
-  { id: 'n-4780', title: 'Dentist — Dr Okonkwo, 3 Dec 14:30', snippet: 'Bring the referral letter. Ask about the night guard quote, £340 was the figure last time.', folder: 'Personal', tags: [], updated: '18 Nov 2026' },
-  { id: 'n-4772', title: 'Roast chicken, 40 min at 200°C', snippet: 'Dry brine overnight. Lemon and thyme in the cavity, potatoes underneath. Rest 20 minutes, no foil.', folder: null, tags: ['recipes'], updated: '17 Nov 2026' },
-  { id: 'n-4769', title: 'Quarterly review prep — metrics', snippet: 'Retention held at 91%. Support backlog down from 212 to 64. Need a line on the October outage.', folder: 'Work', tags: [], updated: '16 Nov 2026' },
-  { id: 'n-4761', title: 'Books lent out and to whom', snippet: 'Rachel has the Calvino. Dad took both Sebalds in August. Hilary borrowed the atlas, said two weeks.', folder: null, tags: ['ideas'], updated: '15 Nov 2026' },
-  { id: 'n-4750', title: 'Flat move — utilities and meter readings', snippet: 'Electric 48211 on 4 Nov. Gas 09842. Water account transfers automatically, confirmed on the phone.', folder: 'Personal', tags: [], updated: '14 Nov 2026' },
-  { id: 'n-4744', title: 'Retro actions — sprint 42', snippet: 'Stop estimating in hours. Rotate the on-call handover doc. Kill the duplicate staging environment.', folder: 'Work', tags: [], updated: '13 Nov 2026' },
-  { id: 'n-4738', title: 'Pasta e ceci — Tuesday dinner', snippet: 'Soffritto, rosemary, half the chickpeas blended. Finish with the starchy water, far more than feels right.', folder: null, tags: ['recipes'], updated: '11 Nov 2026' },
-  { id: 'n-4730', title: 'Phrases to use in Portuguese class', snippet: 'fica para a próxima, dá para ver, estou só a ver. Ask Inês about the difference between ficar and estar.', folder: 'Personal', tags: [], updated: '10 Nov 2026' },
-  { id: 'n-4722', title: 'Pitch outline — Velvet launch', snippet: 'Open with the cost of a lost note. Three slides of product, one of pricing. Close on the private-by-default line.', folder: 'Work', tags: ['ideas'], updated: '9 Nov 2026' },
-  { id: 'n-4715', title: 'Car service quotes', snippet: 'Marlow Garage £285 including MOT. Dealer quoted £460. Brake pads are the difference, ask for the old ones back.', folder: 'Personal', tags: [], updated: '8 Nov 2026' },
-  { id: 'n-4708', title: 'Weeknight curry base', snippet: 'Triple batch: onion, ginger, garlic, cook down 40 min. Freeze flat in bags. Add tomato and spice on the night.', folder: null, tags: ['recipes'], updated: '7 Nov 2026' },
-  { id: 'n-4701', title: 'Names for the new team space', snippet: 'Drafting Room. The Annexe. Long Table. Priya likes Long Table, Tomas thinks it sounds like a canteen.', folder: 'Work', tags: ['ideas'], updated: '6 Nov 2026' },
-  { id: 'n-4693', title: 'Insurance renewal — compare 3 quotes', snippet: 'Renewal is £612, up 18%. Two quotes under £500 with the same excess. Renewal date 1 Dec, cancel before then.', folder: 'Personal', tags: [], updated: '5 Nov 2026' },
-  { id: 'n-4681', title: 'Hiring loop debrief — Priya, Tomas', snippet: 'Both strong on systems. Divergence on the schema question — write a clearer prompt before the next round.', folder: 'Work', tags: [], updated: '3 Nov 2026' },
+  {
+    id: "n-4821",
+    title: "Q1 planning — agenda, owners, open risks",
+    snippet:
+      "Agenda: headcount freeze, billing migration, two open risks. Owners — Priya (infra), Tomas (data warehouse).",
+    folder: "Work",
+    tags: [],
+    updated: "2 hours ago",
+  },
+  {
+    id: "n-4817",
+    title: "Reading list — three books to finish",
+    snippet:
+      "Still on the pile: The Dawn of Everything, Piranesi, A Pattern Language. Started Piranesi on the train.",
+    folder: null,
+    tags: ["ideas"],
+    updated: "Yesterday, 21:04",
+  },
+  {
+    id: "n-4790",
+    title: "Sourdough timings — starter at 9am",
+    snippet:
+      "Feed starter 9am. Autolyse 12:30, first fold 13:00, four folds at 30 min. Shape 17:00, fridge overnight.",
+    folder: null,
+    tags: ["recipes"],
+    updated: "12 Nov 2026",
+  },
+  {
+    id: "n-4755",
+    title: "Flat move checklist",
+    snippet:
+      "Redirect post from 2 Dec. Book lift at Hanbury Court. Cancel broadband, keep the router box for returns.",
+    folder: "Personal",
+    tags: [],
+    updated: "4 Nov 2026",
+  },
+  {
+    id: "n-4826",
+    title: "Standup notes — 24 Nov",
+    snippet:
+      "Search indexing back-filled overnight, 1.2M rows. Tomas blocked on the staging key rotation.",
+    folder: "Work",
+    tags: [],
+    updated: "Yesterday, 09:14",
+  },
+  {
+    id: "n-4812",
+    title: "Miso butter aubergine",
+    snippet:
+      "Halve, score, 25 min at 210°C. Whisk white miso with butter and mirin, brush twice. Scatter spring onion.",
+    folder: null,
+    tags: ["recipes"],
+    updated: "23 Nov 2026",
+  },
+  {
+    id: "n-4808",
+    title: "Interview questions — backend hire",
+    snippet:
+      "Ask about a migration they rolled back. Pair exercise: paginate a feed without offset. Avoid trick puzzles.",
+    folder: "Work",
+    tags: [],
+    updated: "22 Nov 2026",
+  },
+  {
+    id: "n-4801",
+    title: "Gift ideas for Mum’s birthday",
+    snippet:
+      "Seed library membership, the Hokusai print she kept mentioning, or a day at the pottery studio in Deptford.",
+    folder: "Personal",
+    tags: ["ideas"],
+    updated: "21 Nov 2026",
+  },
+  {
+    id: "n-2117",
+    title: "Pension transfer — reference numbers",
+    snippet:
+      "Scheme ref ends 0048. Transfer form posted 18 Nov, allow 10 working days. Chase if nothing by 2 Dec.",
+    folder: "Personal",
+    tags: [],
+    updated: "20 Nov 2026",
+  },
+  {
+    id: "n-4788",
+    title: "Side project: tide clock",
+    snippet:
+      "One hand, 12h25m cycle. Harmonic data from the admiralty feed. Brass face, walnut surround if I can find offcuts.",
+    folder: null,
+    tags: ["ideas"],
+    updated: "19 Nov 2026",
+  },
+  {
+    id: "n-4780",
+    title: "Dentist — Dr Okonkwo, 3 Dec 14:30",
+    snippet:
+      "Bring the referral letter. Ask about the night guard quote, £340 was the figure last time.",
+    folder: "Personal",
+    tags: [],
+    updated: "18 Nov 2026",
+  },
+  {
+    id: "n-4772",
+    title: "Roast chicken, 40 min at 200°C",
+    snippet:
+      "Dry brine overnight. Lemon and thyme in the cavity, potatoes underneath. Rest 20 minutes, no foil.",
+    folder: null,
+    tags: ["recipes"],
+    updated: "17 Nov 2026",
+  },
+  {
+    id: "n-4769",
+    title: "Quarterly review prep — metrics",
+    snippet:
+      "Retention held at 91%. Support backlog down from 212 to 64. Need a line on the October outage.",
+    folder: "Work",
+    tags: [],
+    updated: "16 Nov 2026",
+  },
+  {
+    id: "n-4761",
+    title: "Books lent out and to whom",
+    snippet:
+      "Rachel has the Calvino. Dad took both Sebalds in August. Hilary borrowed the atlas, said two weeks.",
+    folder: null,
+    tags: ["ideas"],
+    updated: "15 Nov 2026",
+  },
+  {
+    id: "n-4750",
+    title: "Flat move — utilities and meter readings",
+    snippet:
+      "Electric 48211 on 4 Nov. Gas 09842. Water account transfers automatically, confirmed on the phone.",
+    folder: "Personal",
+    tags: [],
+    updated: "14 Nov 2026",
+  },
+  {
+    id: "n-4744",
+    title: "Retro actions — sprint 42",
+    snippet:
+      "Stop estimating in hours. Rotate the on-call handover doc. Kill the duplicate staging environment.",
+    folder: "Work",
+    tags: [],
+    updated: "13 Nov 2026",
+  },
+  {
+    id: "n-4738",
+    title: "Pasta e ceci — Tuesday dinner",
+    snippet:
+      "Soffritto, rosemary, half the chickpeas blended. Finish with the starchy water, far more than feels right.",
+    folder: null,
+    tags: ["recipes"],
+    updated: "11 Nov 2026",
+  },
+  {
+    id: "n-4730",
+    title: "Phrases to use in Portuguese class",
+    snippet:
+      "fica para a próxima, dá para ver, estou só a ver. Ask Inês about the difference between ficar and estar.",
+    folder: "Personal",
+    tags: [],
+    updated: "10 Nov 2026",
+  },
+  {
+    id: "n-4722",
+    title: "Pitch outline — Velvet launch",
+    snippet:
+      "Open with the cost of a lost note. Three slides of product, one of pricing. Close on the private-by-default line.",
+    folder: "Work",
+    tags: ["ideas"],
+    updated: "9 Nov 2026",
+  },
+  {
+    id: "n-4715",
+    title: "Car service quotes",
+    snippet:
+      "Marlow Garage £285 including MOT. Dealer quoted £460. Brake pads are the difference, ask for the old ones back.",
+    folder: "Personal",
+    tags: [],
+    updated: "8 Nov 2026",
+  },
+  {
+    id: "n-4708",
+    title: "Weeknight curry base",
+    snippet:
+      "Triple batch: onion, ginger, garlic, cook down 40 min. Freeze flat in bags. Add tomato and spice on the night.",
+    folder: null,
+    tags: ["recipes"],
+    updated: "7 Nov 2026",
+  },
+  {
+    id: "n-4701",
+    title: "Names for the new team space",
+    snippet:
+      "Drafting Room. The Annexe. Long Table. Priya likes Long Table, Tomas thinks it sounds like a canteen.",
+    folder: "Work",
+    tags: ["ideas"],
+    updated: "6 Nov 2026",
+  },
+  {
+    id: "n-4693",
+    title: "Insurance renewal — compare 3 quotes",
+    snippet:
+      "Renewal is £612, up 18%. Two quotes under £500 with the same excess. Renewal date 1 Dec, cancel before then.",
+    folder: "Personal",
+    tags: [],
+    updated: "5 Nov 2026",
+  },
+  {
+    id: "n-4681",
+    title: "Hiring loop debrief — Priya, Tomas",
+    snippet:
+      "Both strong on systems. Divergence on the schema question — write a clearer prompt before the next round.",
+    folder: "Work",
+    tags: [],
+    updated: "3 Nov 2026",
+  },
 ];
 
-const WF_ROW_IDS = { 'n-4821': 'i-3-0-0', 'n-4817': 'i-3-0-1', 'n-4790': 'i-3-0-2', 'n-4755': 'i-3-0-3' };
+const ROW_TEST_IDS = {
+  "n-4821": "q1-planning-agenda-owners-open-risk-link",
+  "n-4817": "reading-list-three-books-to-finish-link",
+  "n-4790": "sourdough-timings-starter-at-9am-re-link",
+  "n-4755": "flat-move-checklist-personal-update-link",
+};
 
 export default function Screen() {
   const navigate = useNavigate();
@@ -71,13 +275,20 @@ export default function Screen() {
   const panelHi = withAlpha(ink, 0.06);
 
   const [notes, setNotes] = React.useState(NOTE_SEED);
-  const [query, setQuery] = React.useState('');
-  const [filter, setFilter] = React.useState('all');
+  const [query, setQuery] = React.useState("");
+  const [filter, setFilter] = React.useState("all");
   const [pending, setPending] = React.useState(null);
-  const [deleteState, setDeleteState] = React.useState('idle'); // idle | working | error
+  const [deleteState, setDeleteState] = React.useState("idle"); // idle | working | error
   const [failedOnce, setFailedOnce] = React.useState(false);
   const [toast, setToast] = React.useState(null);
-  const [sync, setSync] = React.useState('live'); // live | stale
+  const [sync, setSync] = React.useState("live"); // live | stale
+  const [online, setOnline] = React.useState(() =>
+    typeof navigator === "undefined" ? true : navigator.onLine,
+  );
+  // AC-011: "New note" (top, or the empty-state link) creates a real, empty
+  // note owned by the signed-in user and opens it straight in the editor.
+  const [creating, setCreating] = React.useState(false);
+  const [createError, setCreateError] = React.useState("");
 
   const timers = React.useRef([]);
   const dialogRef = React.useRef(null);
@@ -90,17 +301,41 @@ export default function Screen() {
     if (pending && cancelRef.current) cancelRef.current.focus();
   }, [pending]);
 
+  React.useEffect(() => {
+    const goOnline = () => setOnline(true);
+    const goOffline = () => setOnline(false);
+    window.addEventListener("online", goOnline);
+    window.addEventListener("offline", goOffline);
+    return () => {
+      window.removeEventListener("online", goOnline);
+      window.removeEventListener("offline", goOffline);
+    };
+  }, []);
+
+  const handleNewNote = async () => {
+    if (creating) return;
+    setCreating(true);
+    setCreateError("");
+    const { data } = await api.POST("/notes", {});
+    setCreating(false);
+    if (data) {
+      navigate("note-detail", { state: { note: data } });
+      return;
+    }
+    setCreateError("Something went wrong creating your note. Try again.");
+  };
+
   const q = query.trim().toLowerCase();
   const matchesFilter = (n) => {
-    if (filter === 'all') return true;
-    const [kind, value] = filter.split(':');
-    return kind === 'folder' ? n.folder === value : n.tags.indexOf(value) !== -1;
+    if (filter === "all") return true;
+    const [kind, value] = filter.split(":");
+    return kind === "folder" ? n.folder === value : n.tags.indexOf(value) !== -1;
   };
   const matchesQuery = (n) =>
     !q || n.title.toLowerCase().indexOf(q) !== -1 || n.snippet.toLowerCase().indexOf(q) !== -1;
 
   const visible = notes.filter(matchesFilter).filter(matchesQuery);
-  const narrowed = q.length > 0 || filter !== 'all';
+  const narrowed = q.length > 0 || filter !== "all";
   const activeFilter = FILTERS.find((f) => f.key === filter);
 
   const highlight = (text) => {
@@ -111,15 +346,23 @@ export default function Screen() {
     let k = 0;
     while (i < text.length) {
       const hit = lower.indexOf(q, i);
-      if (hit === -1) { out.push(text.slice(i)); break; }
+      if (hit === -1) {
+        out.push(text.slice(i));
+        break;
+      }
       if (hit > i) out.push(text.slice(i, hit));
       out.push(
         <mark
-          key={'m' + k++}
-          style={{ backgroundColor: withAlpha(accent, 0.24), color: ink, borderRadius: '2px', padding: '0 2px' }}
+          key={"m" + k++}
+          style={{
+            backgroundColor: withAlpha(accent, 0.24),
+            color: ink,
+            borderRadius: "2px",
+            padding: "0 2px",
+          }}
         >
           {text.slice(hit, hit + q.length)}
-        </mark>
+        </mark>,
       );
       i = hit + q.length;
     }
@@ -127,27 +370,27 @@ export default function Screen() {
   };
 
   const closeModal = () => {
-    if (deleteState === 'working') return;
+    if (deleteState === "working") return;
     setPending(null);
-    setDeleteState('idle');
+    setDeleteState("idle");
   };
 
   const confirmDelete = () => {
     const note = pending;
     if (!note) return;
-    setDeleteState('working');
+    setDeleteState("working");
     const t = setTimeout(() => {
       if (note.id === FAIL_ONCE_ID && !failedOnce) {
         setFailedOnce(true);
-        setDeleteState('error');
-        setSync('stale');
+        setDeleteState("error");
+        setSync("stale");
         return;
       }
       setNotes((prev) => prev.filter((n) => n.id !== note.id));
       setPending(null);
-      setDeleteState('idle');
-      setSync('live');
-      setToast('Deleted “' + note.title + '”. It is gone from your list and from search.');
+      setDeleteState("idle");
+      setSync("live");
+      setToast("Note deleted");
       const t2 = setTimeout(() => setToast(null), 6000);
       timers.current.push(t2);
     }, 720);
@@ -155,20 +398,33 @@ export default function Screen() {
   };
 
   const onDialogKeyDown = (e) => {
-    if (e.key === 'Escape') { e.stopPropagation(); closeModal(); return; }
-    if (e.key !== 'Tab' || !dialogRef.current) return;
+    if (e.key === "Escape") {
+      e.stopPropagation();
+      closeModal();
+      return;
+    }
+    if (e.key !== "Tab" || !dialogRef.current) return;
     const nodes = Array.prototype.slice.call(
-      dialogRef.current.querySelectorAll('button:not([disabled])')
+      dialogRef.current.querySelectorAll("button:not([disabled])"),
     );
     if (!nodes.length) return;
     const first = nodes[0];
     const last = nodes[nodes.length - 1];
-    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
-    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
   };
 
-  const labelCls = 'text-[11px] uppercase tracking-[0.16em]';
-  const panelStyle = { backgroundColor: panel, border: '1px solid ' + hair, borderRadius: brand.radius };
+  const labelCls = "text-[11px] uppercase tracking-[0.16em]";
+  const panelStyle = {
+    backgroundColor: panel,
+    border: "1px solid " + hair,
+    borderRadius: brand.radius,
+  };
 
   return (
     <div
@@ -177,8 +433,8 @@ export default function Screen() {
         backgroundColor: brand.backgroundColor,
         color: ink,
         fontFamily: brand.fontBody,
-        '--vlv-accent': accent,
-        '--vlv-ink': ink,
+        "--vlv-accent": accent,
+        "--vlv-ink": ink,
       }}
     >
       <style>{`
@@ -198,39 +454,79 @@ export default function Screen() {
       `}</style>
 
       <div className="mx-auto w-full max-w-5xl">
+        {!online && (
+          <div
+            role="alert"
+            className="mb-6 flex items-start gap-3 px-4 py-3 text-[13px]"
+            style={{ ...panelStyle, borderLeft: "2px solid " + DESTRUCTIVE }}
+          >
+            <AlertCircle
+              className="mt-0.5 h-4 w-4 shrink-0"
+              aria-hidden="true"
+              style={{ color: DESTRUCTIVE }}
+            />
+            <span>You need an internet connection to use Notes</span>
+          </div>
+        )}
+
         {/* Row 1 — title + primary action */}
         <div className="grid grid-cols-12 items-end gap-4">
-          <div className="col-span-12 sm:col-span-8" data-wf="b-0-0">
+          <div className="col-span-12 sm:col-span-8">
             <h1
+              data-testid="my-notes-title"
               className="text-[34px] leading-tight sm:text-[40px]"
-              style={{ fontFamily: brand.fontHeading, letterSpacing: '-0.01em' }}
+              style={{ fontFamily: brand.fontHeading, letterSpacing: "-0.01em" }}
             >
               My notes
             </h1>
-            <p className="mt-2 text-[13px]" style={{ color: muted, fontVariantNumeric: 'tabular-nums' }}>
-              Private to susan.raya@quorq.ai — only notes on this account are ever shown here. Session ends after
-              30 minutes idle.
+            <p
+              className="mt-2 text-[13px]"
+              style={{ color: muted, fontVariantNumeric: "tabular-nums" }}
+            >
+              Private to susan.raya@quorq.ai — only notes on this account are ever shown here.
+              Session ends after 30 minutes idle.
             </p>
           </div>
           <div className="col-span-12 flex sm:col-span-4 sm:justify-end">
             <Button
-              data-wf="b-0-1"
+              data-testid="new-note-btn"
               type="button"
-              onClick={() => navigate('note-detail')}
-              className="inline-flex h-11 w-full items-center justify-center gap-2 px-5 text-[14px] font-semibold transition-opacity hover:opacity-90 sm:w-auto"
-              style={{ backgroundColor: accent, color: brand.backgroundColor, borderRadius: brand.radius, border: 'none' }}
+              disabled={creating}
+              onClick={handleNewNote}
+              className="inline-flex h-11 w-full items-center justify-center gap-2 px-5 text-[14px] font-semibold transition-opacity hover:opacity-90 disabled:opacity-70 sm:w-auto"
+              style={{
+                backgroundColor: accent,
+                color: brand.backgroundColor,
+                borderRadius: brand.radius,
+                border: "none",
+              }}
             >
               <Plus className="h-4 w-4" aria-hidden="true" />
-              New note
+              {creating ? "Creating…" : "New note"}
             </Button>
           </div>
         </div>
 
-        <div className="mt-6" style={{ height: '1px', backgroundColor: withAlpha(accent, 0.45) }} />
+        {createError && (
+          <div
+            role="alert"
+            className="mt-4 flex items-start gap-3 px-4 py-3 text-[13px]"
+            style={{ ...panelStyle, borderLeft: "2px solid " + DESTRUCTIVE }}
+          >
+            <AlertCircle
+              className="mt-0.5 h-4 w-4 shrink-0"
+              aria-hidden="true"
+              style={{ color: DESTRUCTIVE }}
+            />
+            <span>{createError}</span>
+          </div>
+        )}
+
+        <div className="mt-6" style={{ height: "1px", backgroundColor: withAlpha(accent, 0.45) }} />
 
         {/* Row 2 — search */}
         <div className="mt-7 grid grid-cols-12 items-end gap-3">
-          <div className="col-span-12 sm:col-span-9" data-wf="b-1-0">
+          <div className="col-span-12 sm:col-span-9">
             <Label htmlFor="note-search" className={labelCls} style={{ color: muted }}>
               Search your notes
             </Label>
@@ -242,27 +538,36 @@ export default function Screen() {
               />
               <Input
                 id="note-search"
+                data-testid="search-titles-and-content-input"
                 ref={searchRef}
                 type="search"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search titles and content"
                 className="h-11 w-full bg-transparent pl-10 pr-3 text-[14px] placeholder:opacity-60"
-                style={{ color: ink, border: '1px solid ' + hair, backgroundColor: panel, borderRadius: brand.radius }}
+                style={{
+                  color: ink,
+                  border: "1px solid " + hair,
+                  backgroundColor: panel,
+                  borderRadius: brand.radius,
+                }}
               />
             </div>
           </div>
           <div className="col-span-12 sm:col-span-3">
             <Button
-              data-wf="b-1-1"
+              data-testid="clear-search-btn"
               type="button"
               disabled={!query}
-              onClick={() => { setQuery(''); if (searchRef.current) searchRef.current.focus(); }}
+              onClick={() => {
+                setQuery("");
+                if (searchRef.current) searchRef.current.focus();
+              }}
               className="h-11 w-full px-4 text-[13px] transition-colors disabled:cursor-not-allowed disabled:opacity-40"
               style={{
-                backgroundColor: 'transparent',
+                backgroundColor: "transparent",
                 color: query ? ink : muted,
-                border: '1px solid ' + hair,
+                border: "1px solid " + hair,
                 borderRadius: brand.radius,
               }}
             >
@@ -272,7 +577,7 @@ export default function Screen() {
         </div>
 
         {/* Row 3 — filters */}
-        <section className="mt-7" data-wf="b-2-0" aria-labelledby="filter-heading">
+        <section className="mt-7" aria-labelledby="filter-heading">
           <h2 id="filter-heading" className={labelCls} style={{ color: muted }}>
             Filter by folder or tag
           </h2>
@@ -282,30 +587,36 @@ export default function Screen() {
               return (
                 <button
                   key={f.key}
-                  data-wf={f.wf}
+                  data-testid={f.testId}
                   type="button"
                   aria-pressed={on}
                   onClick={() => setFilter(f.key)}
                   className="inline-flex h-10 items-center gap-2 px-4 text-[13px] transition-colors"
                   style={{
                     borderRadius: brand.radius,
-                    border: '1px solid ' + (on ? withAlpha(accent, 0.55) : hair),
-                    backgroundColor: on ? withAlpha(accent, 0.14) : 'transparent',
+                    border: "1px solid " + (on ? withAlpha(accent, 0.55) : hair),
+                    backgroundColor: on ? withAlpha(accent, 0.14) : "transparent",
                     color: on ? ink : muted,
                   }}
                 >
-                  {on && <Check className="h-3.5 w-3.5" aria-hidden="true" style={{ color: accent }} />}
+                  {on && (
+                    <Check className="h-3.5 w-3.5" aria-hidden="true" style={{ color: accent }} />
+                  )}
                   {f.label}
                 </button>
               );
             })}
             <button
-              data-wf="i-2-0-5"
+              data-testid="clear-select"
               type="button"
-              disabled={filter === 'all'}
-              onClick={() => setFilter('all')}
+              disabled={filter === "all"}
+              onClick={() => setFilter("all")}
               className="inline-flex h-10 items-center gap-2 px-3 text-[13px] underline-offset-4 transition-opacity hover:underline disabled:cursor-not-allowed disabled:no-underline disabled:opacity-40"
-              style={{ color: filter === 'all' ? muted : ink, background: 'transparent', border: 'none' }}
+              style={{
+                color: filter === "all" ? muted : ink,
+                background: "transparent",
+                border: "none",
+              }}
             >
               <X className="h-3.5 w-3.5" aria-hidden="true" />
               Clear filter
@@ -314,25 +625,32 @@ export default function Screen() {
         </section>
 
         {/* Row 4 — list */}
-        <section className="mt-8" data-wf="b-3-0" aria-labelledby="list-heading">
+        <section className="mt-8" aria-labelledby="list-heading">
           <div className="flex flex-wrap items-baseline justify-between gap-3">
             <h2
               id="list-heading"
               className="text-[20px]"
-              style={{ fontFamily: brand.fontHeading, fontVariantNumeric: 'tabular-nums' }}
+              style={{ fontFamily: brand.fontHeading, fontVariantNumeric: "tabular-nums" }}
             >
-              {notes.length} {notes.length === 1 ? 'note' : 'notes'}
+              {notes.length} {notes.length === 1 ? "note" : "notes"}
             </h2>
             <p
               className="text-[12px]"
               aria-live="polite"
-              style={{ color: muted, fontVariantNumeric: 'tabular-nums' }}
+              style={{ color: muted, fontVariantNumeric: "tabular-nums" }}
             >
               {narrowed
-                ? 'Showing ' + visible.length + ' of ' + notes.length +
-                  (q ? ' for “' + query.trim() + '”' : '') +
-                  (activeFilter && filter !== 'all' ? ' in ' + activeFilter.label.toLowerCase() : '')
-                : (sync === 'live' ? 'All notes synced · 09:41' : 'Reconnecting — last synced 09:41')}
+                ? "Showing " +
+                  visible.length +
+                  " of " +
+                  notes.length +
+                  (q ? " for “" + query.trim() + "”" : "") +
+                  (activeFilter && filter !== "all"
+                    ? " in " + activeFilter.label.toLowerCase()
+                    : "")
+                : sync === "live"
+                  ? "All notes synced · 09:41"
+                  : "Reconnecting — last synced 09:41"}
             </p>
           </div>
 
@@ -340,50 +658,66 @@ export default function Screen() {
             <div
               role="status"
               className="vlv-rise mt-4 flex items-start gap-3 px-4 py-3 text-[13px]"
-              style={{ ...panelStyle, borderLeft: '2px solid ' + accent }}
+              style={{ ...panelStyle, borderLeft: "2px solid " + accent }}
             >
-              <CheckCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" style={{ color: accent }} />
+              <CheckCircle
+                className="mt-0.5 h-4 w-4 shrink-0"
+                aria-hidden="true"
+                style={{ color: accent }}
+              />
               <span>{toast}</span>
             </div>
           )}
 
-          {sync === 'stale' && (
+          {sync === "stale" && (
             <div
               className="mt-4 flex items-start gap-3 px-4 py-3 text-[13px]"
-              style={{ ...panelStyle, borderLeft: '2px solid ' + withAlpha(ink, 0.35), color: muted }}
+              style={{
+                ...panelStyle,
+                borderLeft: "2px solid " + withAlpha(ink, 0.35),
+                color: muted,
+              }}
             >
               <Clock className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
               <span>
-                <span style={{ color: ink }}>Showing your last synced list.</span> The server went quiet a moment ago —
-                your notes are safe and we are still trying.
+                <span style={{ color: ink }}>Showing your last synced list.</span> The server went
+                quiet a moment ago — your notes are safe and we are still trying.
               </span>
             </div>
           )}
 
           {notes.length > 0 && visible.length > 0 && (
-            <ul className="mt-4" style={{ ...panelStyle, overflow: 'hidden' }}>
+            <ul
+              data-testid="24-notes-list"
+              className="mt-4"
+              style={{ ...panelStyle, overflow: "hidden" }}
+            >
               {visible.map((n, idx) => (
                 <li
                   key={n.id}
                   className="vlv-row vlv-fade"
-                  style={{ borderTop: idx === 0 ? 'none' : '1px solid ' + hair }}
+                  style={{ borderTop: idx === 0 ? "none" : "1px solid " + hair }}
                 >
                   <div className="flex items-stretch">
                     <div className="flex w-[3px] shrink-0 items-center py-4 pl-3">
                       <span
                         className="vlv-spine block h-full w-px"
-                        style={{ backgroundColor: accent, minHeight: '44px' }}
+                        style={{ backgroundColor: accent, minHeight: "44px" }}
                         aria-hidden="true"
                       />
                     </div>
                     <button
-                      data-wf={WF_ROW_IDS[n.id]}
+                      data-testid={ROW_TEST_IDS[n.id]}
                       type="button"
-                      onClick={() => navigate('note-detail')}
+                      onClick={() => navigate("note-detail")}
                       className="min-w-0 flex-1 px-4 py-4 text-left transition-colors sm:px-5"
-                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = panelHi; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-                      style={{ background: 'transparent', border: 'none', color: ink }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = panelHi;
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = "transparent";
+                      }}
+                      style={{ background: "transparent", border: "none", color: ink }}
                     >
                       <span
                         className="block truncate text-[17px]"
@@ -396,7 +730,7 @@ export default function Screen() {
                       </span>
                       <span className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
                         <span className={labelCls} style={{ color: n.folder ? ink : muted }}>
-                          {n.folder ? n.folder : 'Unfiled'}
+                          {n.folder ? n.folder : "Unfiled"}
                         </span>
                         {n.tags.map((t) => (
                           <Badge
@@ -405,8 +739,8 @@ export default function Screen() {
                             style={{
                               backgroundColor: withAlpha(accent, 0.13),
                               color: ink,
-                              border: '1px solid ' + withAlpha(accent, 0.3),
-                              borderRadius: '999px',
+                              border: "1px solid " + withAlpha(accent, 0.3),
+                              borderRadius: "999px",
                             }}
                           >
                             #{t}
@@ -414,7 +748,7 @@ export default function Screen() {
                         ))}
                         <span
                           className="text-[12px]"
-                          style={{ color: muted, fontVariantNumeric: 'tabular-nums' }}
+                          style={{ color: muted, fontVariantNumeric: "tabular-nums" }}
                         >
                           Updated {n.updated}
                         </span>
@@ -423,12 +757,24 @@ export default function Screen() {
                     <div className="flex shrink-0 items-center pr-3 sm:pr-4">
                       <button
                         type="button"
-                        aria-label={'Delete note: ' + n.title}
-                        onClick={() => { setPending(n); setDeleteState('idle'); }}
+                        aria-label={"Delete note: " + n.title}
+                        onClick={() => {
+                          setPending(n);
+                          setDeleteState("idle");
+                        }}
                         className="vlv-del flex h-11 w-11 items-center justify-center opacity-0 transition-opacity"
-                        style={{ background: 'transparent', border: 'none', color: muted, borderRadius: brand.radius }}
-                        onMouseEnter={(e) => { e.currentTarget.style.color = DESTRUCTIVE; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.color = muted; }}
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          color: muted,
+                          borderRadius: brand.radius,
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.color = DESTRUCTIVE;
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.color = muted;
+                        }}
                       >
                         <Trash className="h-4 w-4" aria-hidden="true" />
                       </button>
@@ -442,18 +788,29 @@ export default function Screen() {
           {notes.length > 0 && visible.length === 0 && (
             <div className="mt-4 px-6 py-12" style={panelStyle}>
               <Empty
-                title={q ? 'Nothing matches “' + query.trim() + '”' : 'Nothing filed under ' + (activeFilter ? activeFilter.label.toLowerCase() : 'this filter')}
+                title="No notes match your search"
                 description={
                   q
-                    ? 'We looked through every title and every line of your ' + notes.length + ' notes. Try a shorter word, or widen the filter.'
-                    : 'This folder or tag has no notes yet. Clear the filter to see everything, or start a note here.'
+                    ? "We looked through every title and every line of your " +
+                      notes.length +
+                      " notes. Try a shorter word, or widen the filter."
+                    : "This folder or tag has no notes yet. Clear the filter to see everything, or start a note here."
                 }
                 action={
                   <Button
                     type="button"
-                    onClick={() => { setQuery(''); setFilter('all'); if (searchRef.current) searchRef.current.focus(); }}
+                    onClick={() => {
+                      setQuery("");
+                      setFilter("all");
+                      if (searchRef.current) searchRef.current.focus();
+                    }}
                     className="h-10 px-4 text-[13px]"
-                    style={{ backgroundColor: 'transparent', color: ink, border: '1px solid ' + hair, borderRadius: brand.radius }}
+                    style={{
+                      backgroundColor: "transparent",
+                      color: ink,
+                      border: "1px solid " + hair,
+                      borderRadius: brand.radius,
+                    }}
                   >
                     Show all notes
                   </Button>
@@ -471,28 +828,43 @@ export default function Screen() {
 
         {/* Row 5 — first-use empty state */}
         {notes.length === 0 && (
-          <section className="mt-8" data-wf="b-4-0">
+          <section className="mt-8" data-testid="no-notes-yet-create-your-first-not-empty">
             <div className="px-6 py-16 text-center" style={panelStyle}>
-              <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center" style={{ border: '1px solid ' + withAlpha(accent, 0.5), borderRadius: brand.radius }}>
+              <div
+                className="mx-auto mb-6 flex h-14 w-14 items-center justify-center"
+                style={{
+                  border: "1px solid " + withAlpha(accent, 0.5),
+                  borderRadius: brand.radius,
+                }}
+              >
                 <FileText className="h-6 w-6" aria-hidden="true" style={{ color: accent }} />
               </div>
               <h2 className="text-[24px]" style={{ fontFamily: brand.fontHeading }}>
                 No notes yet, create your first note
               </h2>
-              <p className="mx-auto mt-3 max-w-[52ch] text-[14px] leading-relaxed" style={{ color: muted }}>
-                This space is yours alone. Write a meeting, a recipe, a half-formed idea — it saves itself as you type,
-                and you can file it under a folder or a tag later.
+              <p
+                className="mx-auto mt-3 max-w-[52ch] text-[14px] leading-relaxed"
+                style={{ color: muted }}
+              >
+                This space is yours alone. Write a meeting, a recipe, a half-formed idea — it saves
+                itself as you type, and you can file it under a folder or a tag later.
               </p>
               <div className="mt-7 flex justify-center">
                 <Button
-                  data-wf="i-4-0-0"
+                  data-testid="new-note-link"
                   type="button"
-                  onClick={() => navigate('note-detail')}
-                  className="inline-flex h-11 items-center justify-center gap-2 px-6 text-[14px] font-semibold transition-opacity hover:opacity-90"
-                  style={{ backgroundColor: accent, color: brand.backgroundColor, borderRadius: brand.radius, border: 'none' }}
+                  disabled={creating}
+                  onClick={handleNewNote}
+                  className="inline-flex h-11 items-center justify-center gap-2 px-6 text-[14px] font-semibold transition-opacity hover:opacity-90 disabled:opacity-70"
+                  style={{
+                    backgroundColor: accent,
+                    color: brand.backgroundColor,
+                    borderRadius: brand.radius,
+                    border: "none",
+                  }}
                 >
                   <Plus className="h-4 w-4" aria-hidden="true" />
-                  New note
+                  {creating ? "Creating…" : "New note"}
                 </Button>
               </div>
             </div>
@@ -505,10 +877,12 @@ export default function Screen() {
         <div
           className="vlv-fade fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center"
           style={{ backgroundColor: withAlpha(brand.backgroundColor, 0.82) }}
-          onMouseDown={(e) => { if (e.target === e.currentTarget) closeModal(); }}
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) closeModal();
+          }}
         >
           <div
-            data-wf="b-5-0"
+            data-testid="delete-this-note-this-cannot-be-un-modal"
             ref={dialogRef}
             role="dialog"
             aria-modal="true"
@@ -517,66 +891,87 @@ export default function Screen() {
             onKeyDown={onDialogKeyDown}
             className="vlv-rise w-full max-w-md p-6"
             style={{
-              backgroundColor: '#1b2721',
-              border: '1px solid ' + withAlpha(ink, 0.16),
+              backgroundColor: "#1b2721",
+              border: "1px solid " + withAlpha(ink, 0.16),
               borderRadius: brand.radius,
-              boxShadow: '0 24px 60px ' + withAlpha('#000000', 0.55),
+              boxShadow: "0 24px 60px " + withAlpha("#000000", 0.55),
             }}
           >
-            <h2 id="delete-title" className="text-[22px] leading-snug" style={{ fontFamily: brand.fontHeading }}>
+            <h2
+              id="delete-title"
+              className="text-[22px] leading-snug"
+              style={{ fontFamily: brand.fontHeading }}
+            >
               Delete this note? This cannot be undone
             </h2>
-            <p id="delete-body" className="mt-3 text-[14px] leading-relaxed" style={{ color: muted }}>
+            <p
+              id="delete-body"
+              className="mt-3 text-[14px] leading-relaxed"
+              style={{ color: muted }}
+            >
               “{pending.title}” will be removed from your list and from search straight away.
             </p>
 
-            {deleteState === 'error' && (
+            {deleteState === "error" && (
               <div
                 role="alert"
                 className="mt-4 flex items-start gap-3 px-3 py-3 text-[13px] leading-relaxed"
                 style={{
-                  border: '1px solid ' + withAlpha(DESTRUCTIVE, 0.5),
+                  border: "1px solid " + withAlpha(DESTRUCTIVE, 0.5),
                   backgroundColor: withAlpha(DESTRUCTIVE, 0.1),
                   borderRadius: brand.radius,
                 }}
               >
-                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" style={{ color: DESTRUCTIVE }} />
+                <AlertCircle
+                  className="mt-0.5 h-4 w-4 shrink-0"
+                  aria-hidden="true"
+                  style={{ color: DESTRUCTIVE }}
+                />
                 <span>
-                  <span className="font-semibold">Delete didn’t go through.</span> The server stopped answering
-                  mid-request, so the note is untouched. Try again, or close this and come back to it.
+                  <span className="font-semibold">Delete didn’t go through.</span> The server
+                  stopped answering mid-request, so the note is untouched. Try again, or close this
+                  and come back to it.
                 </span>
               </div>
             )}
 
             <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
               <Button
-                data-wf="i-5-0-0"
                 ref={cancelRef}
                 type="button"
                 onClick={closeModal}
-                disabled={deleteState === 'working'}
+                disabled={deleteState === "working"}
                 className="h-11 px-5 text-[14px] transition-colors disabled:opacity-40"
-                style={{ backgroundColor: 'transparent', color: ink, border: '1px solid ' + hair, borderRadius: brand.radius }}
+                style={{
+                  backgroundColor: "transparent",
+                  color: ink,
+                  border: "1px solid " + hair,
+                  borderRadius: brand.radius,
+                }}
               >
                 Cancel
               </Button>
               <Button
-                data-wf="i-5-1-1"
                 type="button"
                 onClick={confirmDelete}
-                disabled={deleteState === 'working'}
+                disabled={deleteState === "working"}
                 className="inline-flex h-11 items-center justify-center gap-2 px-5 text-[14px] font-semibold transition-opacity hover:opacity-90 disabled:opacity-70"
-                style={{ backgroundColor: DESTRUCTIVE, color: brand.backgroundColor, border: 'none', borderRadius: brand.radius }}
+                style={{
+                  backgroundColor: DESTRUCTIVE,
+                  color: brand.backgroundColor,
+                  border: "none",
+                  borderRadius: brand.radius,
+                }}
               >
-                {deleteState === 'working' ? (
+                {deleteState === "working" ? (
                   <React.Fragment>
                     <Clock className="h-4 w-4" aria-hidden="true" />
                     Deleting…
                   </React.Fragment>
-                ) : deleteState === 'error' ? (
-                  'Try delete again'
+                ) : deleteState === "error" ? (
+                  "Try delete again"
                 ) : (
-                  'Delete note'
+                  "Delete note"
                 )}
               </Button>
             </div>

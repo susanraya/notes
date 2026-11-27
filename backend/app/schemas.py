@@ -5,6 +5,8 @@ generated route returns until it has been implemented. Every model is an ApiMode
 so its JSON uses camelCase names (app/api_model.py).
 """
 
+from datetime import datetime
+
 from app.api_model import ApiModel
 
 
@@ -30,3 +32,29 @@ class UserRead(ApiModel):
     id: str
     email: str
     role: str
+
+
+class RegisterRequest(ApiModel):
+    email: str
+    password: str
+
+
+class RegisteredUser(ApiModel):
+    id: str
+    email: str
+
+
+class RegisterResponse(ApiModel):
+    # "token", not "access_token": matches the shape /auth/login already returns.
+    token: str
+    user: RegisteredUser
+
+
+class NoteResponse(ApiModel):
+    """A note as returned to the client (POST /notes). AC-011 (US-005)."""
+
+    id: str
+    title: str
+    content_html: str
+    created_at: datetime
+    updated_at: datetime

@@ -17,13 +17,16 @@ export function toPath(route: string): string {
       .map((segment) =>
         segment.startsWith(":")
           ? segment
-          : segment.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
+          : segment
+              .toLowerCase()
+              .replace(/[^a-z0-9]+/g, "-")
+              .replace(/^-|-$/g, ""),
       )
       .join("/")
   );
 }
 
-export function useNavigate(): (route: string) => void {
+export function useNavigate(): (route: string, options?: { state?: unknown }) => void {
   const navigate = useRouterNavigate();
-  return (route: string) => navigate(toPath(route));
+  return (route: string, options?: { state?: unknown }) => navigate(toPath(route), options);
 }

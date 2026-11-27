@@ -17,6 +17,7 @@
     "gen:api": "cd ../backend && ${PYTHON:-.venv/bin/python} -m scripts.export_openapi ../frontend/src/api/openapi.json && cd ../frontend && openapi-typescript src/api/openapi.json --output src/api/schema.ts"
   },
   "dependencies": {
+    "@tiptap/react": "*",
     "openapi-fetch": "^0.17.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
