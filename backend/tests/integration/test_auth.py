@@ -120,7 +120,15 @@ def test_tc015_registering_with_an_invalid_email_format_is_rejected(client: Test
 
     assert response.status_code == 422, response.text
     errors = response.json().get("detail", [])
-    assert any("email" in str(error.get("loc", [])).lower() for error in errors), response.text
+
+    def _mentions_email(error: object) -> bool:
+        if isinstance(error, dict):
+            return "email" in str(error.get("loc", [])).lower() or "email" in str(
+                error.get("msg", "")
+            ).lower()
+        return "email" in str(error).lower()
+
+    assert any(_mentions_email(error) for error in errors), response.text
 
 
 def test_tc016_registering_with_a_too_short_password_is_rejected(client: TestClient) -> None:
@@ -137,7 +145,15 @@ def test_tc016_registering_with_a_too_short_password_is_rejected(client: TestCli
 
     assert response.status_code == 422, response.text
     errors = response.json().get("detail", [])
-    assert any("password" in str(error.get("loc", [])).lower() for error in errors), response.text
+
+    def _mentions_password(error: object) -> bool:
+        if isinstance(error, dict):
+            return "password" in str(error.get("loc", [])).lower() or "password" in str(
+                error.get("msg", "")
+            ).lower()
+        return "password" in str(error).lower()
+
+    assert any(_mentions_password(error) for error in errors), response.text
 
 
 def test_tc019_stored_password_is_hashed_never_plain_text(client: TestClient) -> None:

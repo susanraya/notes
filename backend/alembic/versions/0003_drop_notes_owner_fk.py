@@ -23,6 +23,4 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.create_foreign_key(
-        "notes_owner_id_fkey", "notes", "users", ["owner_id"], ["id"]
-    )
+    op.create_foreign_key("notes_owner_id_fkey", "notes", "users", ["owner_id"], ["id"])
