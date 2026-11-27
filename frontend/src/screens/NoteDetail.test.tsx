@@ -1,11 +1,16 @@
-import { render, screen, fireEvent, within } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 import ScreenComponent from "./NoteDetail";
+import { api } from "@/api/client";
 
 const mockNavigate = vi.fn();
+
+vi.mock("@/api/client", () => ({
+  api: { GET: vi.fn() },
+}));
 
 vi.mock("@/lib/navigate", () => ({
   useNavigate: () => mockNavigate,
@@ -118,6 +123,54 @@ describe("NoteDetail screen", () => {
     const lastBlock = editor.lastElementChild as HTMLElement;
     expect(lastBlock.tagName).toBe("OL");
     expect(lastBlock.querySelector("li")?.textContent).toBe(originalText);
+  });
+
+  it("[AC-017] opens the note selected from the list with its saved content and formatting intact", async () => {
+    const note = {
+      id: crypto.randomUUID(),
+      title: "Sourdough timings",
+      contentHtml: "<h3>Starter</h3><p>Feed at <strong>9am</strong>, then rest.</p>",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    (api.GET as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: note,
+      response: { status: 200 },
+    });
+
+    renderScreen({ noteId: note.id });
+
+    expect(await screen.findByDisplayValue("Sourdough timings")).toBeInTheDocument();
+    expect(api.GET).toHaveBeenCalledWith("/notes/{note_id}", {
+      params: { path: { note_id: note.id } },
+    });
+
+    const editor = screen.getByTestId("note-content-agenda-budget-review-input");
+    await waitFor(() => expect(editor.querySelector("h3")?.textContent).toBe("Starter"));
+    expect(editor.querySelector("p strong")?.textContent).toBe("9am");
+  });
+
+  it("[AC-017] disables the title and content while the selected note is opening", () => {
+    (api.GET as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(() => {}));
+
+    renderScreen({ noteId: crypto.randomUUID() });
+
+    expect(screen.getByTestId("title-q1-planning-input")).toBeDisabled();
+    expect(screen.getByTestId("note-content-agenda-budget-review-input")).toHaveAttribute(
+      "aria-busy",
+      "true",
+    );
+  });
+
+  it("[AC-017] returns to the note list when the selected note cannot be opened", async () => {
+    (api.GET as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: undefined,
+      response: { status: 404 },
+    });
+
+    renderScreen({ noteId: crypto.randomUUID() });
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("notes"));
   });
 
   it("[AC-013] offers no option to add images or file attachments", () => {

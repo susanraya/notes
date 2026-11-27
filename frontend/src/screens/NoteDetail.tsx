@@ -3,6 +3,7 @@
 import React from "react";
 import { useLocation } from "react-router-dom";
 
+import { api } from "@/api/client";
 import * as UI from "@/lib/ui";
 import { Icons } from "@/lib/icons";
 import { brand } from "@/lib/brand";
@@ -20,10 +21,11 @@ const { Button, Input, Label, Select } = UI;
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const { Plus, Check, X, User, Trash, ArrowLeft, AlertCircle } = Icons;
 
-// The note shown when the editor is opened from the note list (no note is
-// passed on navigation) -- there is no "read a note" endpoint yet, so this
-// stands in for it. A note created through "New note" (AC-011) arrives via
-// navigation state instead and takes over every field below.
+// The note shown when the editor is opened with no navigation state at all
+// (a direct visit, not a selection from the note list or a fresh "New
+// note"). A note picked from the list (AC-017) arrives as an id and is
+// fetched through GET /notes/{id}; a note just created (AC-011) arrives in
+// full. Either takes over every field below.
 const FALLBACK_NOTE = {
   id: "N-2041",
   title: "Q1 planning",
@@ -79,6 +81,10 @@ export default function Screen() {
   // AC-011: a note just created by "New note" arrives here, empty and owned
   // by the signed-in user, ready for typing straight away.
   const createdNote = location.state && location.state.note;
+  // AC-017: a note picked from the note list arrives here as just its id --
+  // the note itself, with its saved content and formatting intact, is fetched
+  // below through GET /notes/{id}.
+  const noteIdToLoad = !createdNote && location.state && location.state.noteId;
 
   const hair = withAlpha(brand.primaryColor, 0.12);
   const hairSoft = withAlpha(brand.primaryColor, 0.07);
@@ -87,22 +93,46 @@ export default function Screen() {
   const muted = brand.neutralColor;
   const accent = brand.accentColor;
 
-  const noteId = createdNote ? createdNote.id : FALLBACK_NOTE.id;
+  // AC-017: null until GET /notes/{id} resolves for a note opened from the list.
+  const [loadedNote, setLoadedNote] = React.useState(null);
+  // idle for a created note or the demo fallback (nothing to fetch), loading
+  // while the request is in flight, then ready or error.
+  const [loadState, setLoadState] = React.useState(noteIdToLoad ? "loading" : "ready");
+
+  const noteId = createdNote
+    ? createdNote.id
+    : loadedNote
+      ? loadedNote.id
+      : noteIdToLoad || FALLBACK_NOTE.id;
   const initialContentHtml = createdNote
     ? createdNote.contentHtml || ""
-    : FALLBACK_NOTE.content_html;
+    : loadedNote
+      ? loadedNote.contentHtml || ""
+      : noteIdToLoad
+        ? ""
+        : FALLBACK_NOTE.content_html;
   const initialCreatedAt = createdNote
     ? formatDate(createdNote.createdAt)
-    : FALLBACK_NOTE.created_at;
+    : loadedNote
+      ? formatDate(loadedNote.createdAt)
+      : noteIdToLoad
+        ? ""
+        : FALLBACK_NOTE.created_at;
   const initialUpdatedAt = createdNote
     ? formatDate(createdNote.updatedAt)
-    : FALLBACK_NOTE.updated_at;
+    : loadedNote
+      ? formatDate(loadedNote.updatedAt)
+      : noteIdToLoad
+        ? ""
+        : FALLBACK_NOTE.updated_at;
 
   const [title, setTitle] = React.useState(
-    createdNote ? createdNote.title || "" : FALLBACK_NOTE.title,
+    createdNote ? createdNote.title || "" : noteIdToLoad ? "" : FALLBACK_NOTE.title,
   );
-  const [folder, setFolder] = React.useState(createdNote ? "" : FALLBACK_NOTE.folder_id);
-  const [tags, setTags] = React.useState(createdNote ? [] : FALLBACK_NOTE.tags);
+  const [folder, setFolder] = React.useState(
+    createdNote || noteIdToLoad ? "" : FALLBACK_NOTE.folder_id,
+  );
+  const [tags, setTags] = React.useState(createdNote || noteIdToLoad ? [] : FALLBACK_NOTE.tags);
   const [newTag, setNewTag] = React.useState("");
   const [tagError, setTagError] = React.useState("");
   const [saveState, setSaveState] = React.useState("saved"); // saved | saving | error
@@ -141,6 +171,43 @@ export default function Screen() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [countWords]);
+
+  // AC-017: load the selected note's saved content and formatting from the
+  // API and bring it into the editor exactly as it was left.
+  React.useEffect(() => {
+    if (!noteIdToLoad) return undefined;
+    let cancelled = false;
+    api
+      .GET("/notes/{note_id}", { params: { path: { note_id: noteIdToLoad } } })
+      .then(({ data }) => {
+        if (cancelled) return;
+        if (data) {
+          setLoadedNote(data);
+          setTitle(data.title || "");
+          setFolder("");
+          setTags([]);
+          if (editorRef.current) editorRef.current.innerHTML = data.contentHtml || "";
+          countWords();
+          setLoadState("ready");
+        } else {
+          setLoadState("error");
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setLoadState("error");
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [noteIdToLoad]);
+
+  // The API refuses a note it does not own the same way it refuses one that
+  // does not exist (AC-017) -- either way there is nothing to open here.
+  React.useEffect(() => {
+    if (loadState === "error") navigate("notes");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadState]);
 
   const scheduleSave = React.useCallback(() => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -498,6 +565,7 @@ export default function Screen() {
                   setTitle(e.target.value);
                   scheduleSave();
                 }}
+                disabled={loadState === "loading"}
                 placeholder="Untitled note"
                 className="vf w-full px-0 py-2"
                 style={{
@@ -608,7 +676,8 @@ export default function Screen() {
               aria-multiline="true"
               aria-labelledby="note-content-label"
               aria-describedby="note-content-help"
-              contentEditable
+              aria-busy={loadState === "loading"}
+              contentEditable={loadState !== "loading"}
               suppressContentEditableWarning
               spellCheck
               tabIndex={0}

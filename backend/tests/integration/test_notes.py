@@ -137,3 +137,65 @@ def test_tc027_api_offers_no_way_to_attach_an_image_or_file(auth_client: TestCli
     assert reread["contentHtml"] == "<p>Agenda notes</p>"
     assert "attachment" not in reread
     assert "image" not in reread
+
+
+# --- AC-017 ---
+
+
+def test_tc002_fetch_an_owned_note_returns_its_saved_content_and_formatting(
+    auth_client: TestClient,
+) -> None:
+    created = auth_client.post("/notes")
+    assert created.status_code == 201, created.text
+    note_id = created.json()["id"]
+
+    html = "<h1>Agenda</h1><p>— <strong>budget review</strong>, hiring plan, open risks</p>"
+
+    save_response = auth_client.put(f"/notes/{note_id}", json={"contentHtml": html})
+    assert save_response.status_code == 200, save_response.text
+
+    list_response = auth_client.get("/notes")
+
+    assert list_response.status_code == 200, list_response.text
+    note_ids = [item["id"] for item in list_response.json()]
+    assert note_id in note_ids
+
+    read_response = auth_client.get(f"/notes/{note_id}")
+
+    assert read_response.status_code == 200, read_response.text
+    reread = read_response.json()
+    assert reread["id"] == note_id
+    assert reread["contentHtml"] == html
+
+
+def test_tc003_opening_a_note_owned_by_another_account_is_refused(
+    auth_client: TestClient, client: TestClient
+) -> None:
+    bob = _second_user(client)
+
+    created = bob.post("/notes")
+    assert created.status_code == 201, created.text
+    note_id = created.json()["id"]
+
+    save_response = bob.put(
+        f"/notes/{note_id}", json={"contentHtml": "<h1>Bob's private note</h1>"}
+    )
+    assert save_response.status_code == 200, save_response.text
+
+    hack_response = auth_client.get(f"/notes/{note_id}")
+
+    assert hack_response.status_code in (403, 404), hack_response.text
+    assert "Bob's private note" not in hack_response.text
+
+    owner_read_response = bob.get(f"/notes/{note_id}")
+
+    assert owner_read_response.status_code == 200, owner_read_response.text
+    assert owner_read_response.json()["contentHtml"] == "<h1>Bob's private note</h1>"
+
+
+def test_tc004_opening_a_note_that_does_not_exist_fails_clearly(
+    auth_client: TestClient,
+) -> None:
+    response = auth_client.get("/notes/999999")
+
+    assert response.status_code == 404, response.text

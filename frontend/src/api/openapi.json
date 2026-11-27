@@ -140,6 +140,57 @@
         ]
       }
     },
+    "/notes/{note_id}": {
+      "get": {
+        "tags": [
+          "Notes"
+        ],
+        "summary": "Get Note",
+        "description": "Open one of the signed-in user's notes with its saved content and formatting\nintact (AC-017); refuses a note owned by another account.",
+        "operationId": "get_note_notes__note_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "note_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Note Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NoteResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such note."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "summary": "Health",

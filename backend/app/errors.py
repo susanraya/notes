@@ -37,3 +37,11 @@ WRONG_CREDENTIALS = ErrorCode(
     status.HTTP_401_UNAUTHORIZED,
     "Incorrect email or password.",
 )
+
+# GET /notes/{id}
+# The same code for "no such note" and "not yours" (AC-017): it never confirms that a
+# note id owned by someone else exists at all.
+NOTE_NOT_FOUND = ErrorCode(
+    status.HTTP_404_NOT_FOUND,
+    "No such note.",
+)
